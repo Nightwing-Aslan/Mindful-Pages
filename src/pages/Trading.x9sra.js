@@ -1,13 +1,7 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
-
 import { currentUser } from 'wix-users';
-import { create } from 'wix-media-backend';
-import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
+import wixLocation from 'wix-location';
 import wixData from 'wix-data';
-
-let uploadedCoverUrl = "";
 
 $w.onReady(async () => {
     if (!currentUser.loggedIn) {
@@ -15,102 +9,133 @@ $w.onReady(async () => {
         return;
     }
     
-    // Set up genre selection
-    const genres = [
-        "Classics", "Memoirs", "Historical Fiction", "Novels", "Mysteries", 
-        "Comedy", "Fantasy", "Science Fiction", "Non-Fiction", "History",
-        "Dystopian", "Action & Adventure", "Thriller & Suspense", "Romance",
-        "Literary Fiction", "Magic", "Graphic Novel", "Comics", "Coming of Age",
-        "Young Adult", "Children's", "Short Story", "Memoir/Autobiography", "Food",
-        "Art", "Science", "True Crime", "Humor", "Religion", "Parenting"
-    ];
-    
-    renderGenreOptions(genres);
-    
-    // Set up event handlers
-    $w('#createButton').onClick(createListing);
-    $w('#bookCoverUpload').onChange(handleCoverUpload);
+    // Set up UI
+    setupSearchAndFilters();
+    loadListings();
 });
 
-function renderGenreOptions(genres) {
-    const $container = $w('#genreContainer');
-    $container.innerHTML = "";
-    
-    genres.forEach(genre => {
-        const genreOption = document.createElement("div");
-        genreOption.className = "genre-option";
-        genreOption.textContent = genre;
-        genreOption.onclick = () => genreOption.classList.toggle("selected");
-        $container.appendChild(genreOption);
-    });
-}
-
-async function handleCoverUpload(event) {
-    const files = event.target.files;
-    if (files.length > 0) {
-        const file = files[0];
-        const uploadedFile = await create.file(file);
-        uploadedCoverUrl = uploadedFile.fileUrl;
-        $w('#coverPreview').src = uploadedCoverUrl;
-    }
-}
-
-async function createListing() {
-    // Get form values
-    const bookTitle = $w('#bookTitle').value;
-    const bookAuthor = $w('#bookAuthor').value;
-    const bookCondition = $w('#conditionSelect').value;
-    const conditionDescription = $w('#conditionDescription').value;
-    const lookingFor = $w('#lookingFor').value;
-    const location = $w('#locationInput').value;
-    const maxDistance = parseInt($w('#distanceSlider').value);
-    
-    // Get selected genres
-    const selectedGenres = [];
-    $w('#genreContainer').querySelectorAll('.genre-option.selected').forEach(el => {
-        selectedGenres.push(el.textContent);
+function setupSearchAndFilters() {
+    $w('#searchInput').onKeyPress(event => {
+        if (event.key === "Enter") loadListings();
     });
     
-    // Create book listing
+    $w('#searchButton').onClick(() => loadListings());
+    $w('#genreFilter').onChange(() => loadListings());
+    $w('#distanceFilter').onChange(() => loadListings());
+    $w('#myListingsToggle').onChange(() => loadListings());
+}
+
+async function loadListings() {
+    $w('#loadingIndicator').show();
+    
     try {
-        const newBook = await wixData.insert("books", {
-            title: bookTitle,
-            author: bookAuthor,
-            condition: bookCondition,
-            conditionDescription,
-            lookingFor,
-            location,
-            maxDistance,
-            genres: selectedGenres,
-            status: "active",
-            ownerUserId: currentUser.id,
-            createdAt: new Date(),
-            bookCover: uploadedCoverUrl
-        });
+        let query = wixData.query("books")
+            .eq("status", "active");
         
-        // Update libraries with new listing
-        const userLibrary = await wixData.query("libraries")
-            .eq("ownerUserId", currentUser.id)
-            .find()
-            .then(({ items }) => items[0]);
-        
-        if (userLibrary) {
-            const updatedListings = [...(userLibrary.bookListings || []), newBook._id];
-            await wixData.update("libraries", {
-                _id: userLibrary._id,
-                bookListings: updatedListings
-            });
+        // Filter by ownership
+        if ($w('#myListingsToggle').checked) {
+            query = query.eq("ownerUserId", currentUser.id);
+        } else {
+            query = query.ne("ownerUserId", currentUser.id);
         }
         
-        wixWindow.openLightbox("SuccessLightbox", {
-            message: "Trade listing created successfully!"
-        });
+        // Apply search filter
+        const searchTerm = $w('#searchInput').value;
+        if (searchTerm) {
+            query = query.contains("title", searchTerm)
+                .or(query.contains("author", searchTerm))
+                .or(query.contains("lookingFor", searchTerm));
+        }
         
-        setTimeout(() => wixLocation.to("/trading"), 3000);
+        // Apply genre filter
+        const selectedGenre = $w('#genreFilter').value;
+        if (selectedGenre && selectedGenre !== "all") {
+            query = query.hasSome("genres", [selectedGenre]);
+        }
+        
+        // Apply distance filter
+        const maxDistance = $w('#distanceFilter').value;
+        if (maxDistance && maxDistance !== "any") {
+            query = query.le("maxDistance", parseInt(maxDistance));
+        }
+        
+        // Execute query
+        const { items } = await query.descending("createdAt").find();
+        
+        // Update UI
+        $w('#listingsRepeater').data = items;
+        $w('#noResults').toggle(!items.length);
         
     } catch (error) {
         wixWindow.openLightbox("ErrorLightbox", {
-            message: "Error creating listing: " + error.message
+            message: "Error loading listings: " + error.message
+        });
+    } finally {
+        $w('#loadingIndicator').hide();
+    }
+}
+
+$w('#listingsRepeater').onItemReady(($item, itemData) => {
+    // Set listing data
+    $item('#listingTitle').text = itemData.title;
+    $item('#listingAuthor').text = `by ${itemData.author}`;
+    $item('#listingCover').src = itemData.bookCover;
+    $item('#listingLocation').text = `${itemData.location} (within ${itemData.maxDistance} miles)`;
+    
+    // Set details
+    $item('#conditionText').text = `Condition: ${itemData.condition}`;
+    $item('#conditionDescription').text = itemData.conditionDescription;
+    $item('#lookingForText').text = `Looking for: ${itemData.lookingFor}`;
+    
+    // Set genre tags
+    const $tagsContainer = $item('#genreTags');
+    $tagsContainer.innerHTML = "";
+    (itemData.genres || []).forEach(genre => {
+        const tag = document.createElement("span");
+        tag.className = "genre-tag";
+        tag.textContent = genre;
+        $tagsContainer.appendChild(tag);
+    });
+    
+    // Handle "Read more" toggle
+    $item('#readMoreButton').onClick(() => {
+        $item('#detailsContent').toggle();
+        $item('#readMoreButton').text = 
+            $item('#detailsContent').visible ? "Read less" : "Read more";
+    });
+    
+    // Handle contact button
+    $item('#contactButton').onClick(() => {
+        wixWindow.openLightbox("ContactUserLightbox", {
+            ownerId: itemData.ownerUserId,
+            bookId: itemData._id
+        });
+    });
+    
+    // Handle mark as traded button
+    $item('#tradedButton').onClick(async () => {
+        await markAsTraded(itemData._id);
+        $item.remove();
+    });
+    
+    // Show/hide traded button based on ownership
+    $item('#tradedButton').toggle(itemData.ownerUserId === currentUser.id);
+});
+
+async function markAsTraded(bookId) {
+    try {
+        // Update book status
+        await wixData.update("books", {
+            _id: bookId,
+            status: "traded"
+        });
+        
+        // Create rating entry
+        wixWindow.openLightbox("RatingLightbox", { bookId });
+        
+    } catch (error) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: "Error updating listing: " + error.message
         });
     }
 }
