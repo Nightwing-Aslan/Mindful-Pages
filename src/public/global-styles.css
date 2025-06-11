@@ -73,3 +73,27 @@
 .rules-content.expanded {
     max-height: 500px;
 }
+
+@media (max-width: 768px) {
+    .list-item {
+        padding: 10px;
+    }
+    
+    .genre-tag {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .filter-section {
+        padding: 10px;
+    }
+}
+
+.list-item {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.list-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
