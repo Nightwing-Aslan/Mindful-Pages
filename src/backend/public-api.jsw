@@ -1,54 +1,46 @@
 import { cron } from 'wix-cron';
 import { data } from 'wix-data';
 
-// Initialize daily reset
+// Initialize daily reset cron job
 export function initDailyReset() {
-    cron.schedule('0 23 * * *', () => resetDailyGame());
-}
-
-// Reset daily game state
-export async function resetDailyGame() {
+  // Schedule daily at 23:00 UTC (00:00 UK time)
+  cron.schedule('0 23 * * *', async () => {
     try {
-        // Deactivate all riddles
-        await data.update("Riddles", { isActive: false }, { "isActive": true });
-        
-        // Get today's date in UK time
-        const now = new Date();
-        const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
-        const ukOffset = isDST ? 60 : 0; // Minutes
-        const today = new Date(now.getTime() + (ukOffset * 60 * 1000));
-        today.setHours(0, 0, 0, 0);
-        
-        // Activate today's riddles
-        await data.update("Riddles", 
-            { isActive: true },
-            { "scheduledDate": today.toISOString() }
-        );
-        
-        console.log("Daily riddles reset complete");
+      // Get today's date in UK format
+      const today = getUKDate();
+      today.setHours(0, 0, 0, 0);
+      
+      // 1. Activate today's scheduled riddles
+      await activateScheduledRiddles(today);
+      
+      console.log("Daily reset completed successfully");
     } catch (error) {
-        console.error("Reset failed:", error);
+      console.error("Daily reset failed:", error);
     }
+  });
 }
 
-// Get today's active riddles
-export async function getTodaysRiddles() {
-    // Adjust for UK time
-    const now = new Date();
-    const isDST = now.getMonth() > 2 && now.getMonth() < 10;
-    const ukOffset = isDST ? 60 : 0;
-    const today = new Date(now.getTime() + (ukOffset * 60 * 1000));
-    today.setHours(0,0,0,0);
-    
-    return data.query("Riddles")
-        .eq("isActive", true)
-        .find();
+async function activateScheduledRiddles(date) {
+  // Clear previous active status
+  await data.update("Riddles", { isActive: false }, { "isActive": true });
+  
+  // Activate scheduled riddles for this date
+  return data.update("Riddles", 
+    { isActive: true },
+    { "scheduledDate": date.toISOString() }
+  );
 }
 
-// Update user streak
-export async function updateUserStreak(userId, newStreak) {
-    return data.update("UserProfiles", {
-        _id: userId,
-        streak: newStreak
-    });
+export function getTodaysRiddles() {
+  return data.query("Riddles")
+    .eq("isActive", true)
+    .find();
+}
+
+// Helper function for UK time
+function getUKDate() {
+  const now = new Date();
+  const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
+  const ukOffset = isDST ? 60 : 0; // Minutes
+  return new Date(now.getTime() + (ukOffset * 60 * 1000));
 }
