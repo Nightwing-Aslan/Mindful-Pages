@@ -3,30 +3,76 @@ import wixWindow from 'wix-window';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';
 
+let selectedGenres = [];
+let maxDistance = 50; // Default max distance
+
 $w.onReady(async () => {
     if (!currentUser.loggedIn) {
         wixLocation.to("/login");
         return;
     }
     
-    // Set up UI
-    setupSearchAndFilters();
+    // Initialize UI
+    initializeFilters();
+    setupEventHandlers();
     loadListings();
 });
 
-function setupSearchAndFilters() {
-    $w('#searchInput').onKeyPress(event => {
-        if (event.key === "Enter") loadListings();
+function initializeFilters() {
+    // Setup genre tags
+    const genres = [
+        "Classics", "Memoirs", "Historical Fiction", "Novels", "Mysteries", 
+        "Comedy", "Fantasy", "Science Fiction", "Non-Fiction", "History",
+        "Dystopian", "Action & Adventure", "Thriller & Suspense", "Romance",
+        "Literary Fiction", "Magic", "Graphic Novel", "Comics", "Coming of Age",
+        "Young Adult", "Children's", "Short Story", "Memoir/Autobiography", "Food",
+        "Art", "Science", "True Crime", "Humor", "Religion", "Parenting"
+    ];
+    
+    renderGenreTags(genres);
+    
+    // Setup distance slider
+    $w('#distanceSlider').value = maxDistance;
+    $w('#distanceValue').text = `${maxDistance} miles`;
+}
+
+function renderGenreTags(genres) {
+    const $container = $w('#genreFilter');
+    $container.innerHTML = "";
+    
+    genres.forEach(genre => {
+        const tag = document.createElement("div");
+        tag.className = "genre-tag";
+        tag.textContent = genre;
+        tag.onclick = () => {
+            tag.classList.toggle("selected");
+            selectedGenres = [...$container.querySelectorAll('.genre-tag.selected')]
+                .map(t => t.textContent);
+            loadListings(); // Real-time filtering
+        };
+        $container.appendChild(tag);
+    });
+}
+
+function setupEventHandlers() {
+    // Real-time filtering
+    $w('#searchInput').onInput(() => loadListings());
+    $w('#applyFiltersButton').onClick(() => loadListings()); // Renamed search button
+    
+    // Distance slider
+    $w('#distanceSlider').onInput((event) => {
+        maxDistance = event.target.value;
+        $w('#distanceValue').text = `${maxDistance} miles`;
+        loadListings(); // Real-time filtering
     });
     
-    $w('#searchButton').onClick(() => loadListings());
-    $w('#genreFilter').onChange(() => loadListings());
-    $w('#distanceFilter').onChange(() => loadListings());
+    // My Listings toggle
     $w('#myListingsToggle').onChange(() => loadListings());
 }
 
 async function loadListings() {
     $w('#loadingIndicator').show();
+    $w('#listingsRepeater').hide();
     
     try {
         let query = wixData.query("books")
@@ -48,16 +94,12 @@ async function loadListings() {
         }
         
         // Apply genre filter
-        const selectedGenre = $w('#genreFilter').value;
-        if (selectedGenre && selectedGenre !== "all") {
-            query = query.hasSome("genres", [selectedGenre]);
+        if (selectedGenres.length > 0) {
+            query = query.hasSome("genres", selectedGenres);
         }
         
         // Apply distance filter
-        const maxDistance = $w('#distanceFilter').value;
-        if (maxDistance && maxDistance !== "any") {
-            query = query.le("maxDistance", parseInt(maxDistance));
-        }
+        query = query.le("maxDistance", parseInt(maxDistance));
         
         // Execute query
         const { items } = await query.descending("createdAt").find();
@@ -72,6 +114,7 @@ async function loadListings() {
         });
     } finally {
         $w('#loadingIndicator').hide();
+        $w('#listingsRepeater').show();
     }
 }
 
@@ -79,16 +122,23 @@ $w('#listingsRepeater').onItemReady(($item, itemData) => {
     // Set listing data
     $item('#listingTitle').text = itemData.title;
     $item('#listingAuthor').text = `by ${itemData.author}`;
-    $item('#listingCover').src = itemData.bookCover;
+    $item('#listingCover').src = itemData.bookCover || "https://example.com/default-book.jpg";
     $item('#listingLocation').text = `${itemData.location} (within ${itemData.maxDistance} miles)`;
     
     // Set details
     $item('#conditionText').text = `Condition: ${itemData.condition}`;
-    $item('#conditionDescription').text = itemData.conditionDescription;
+    $item('#conditionDescription').text = itemData.conditionDescription || "No additional details";
     $item('#lookingForText').text = `Looking for: ${itemData.lookingFor}`;
     
-    // NEW: Set personal description
-    $item('#personalDescription').text = itemData.personalTradeDescription;
+    // Personal summary handling
+    const hasPersonalSummary = itemData.personalTradeDescription && 
+                              itemData.personalTradeDescription.trim() !== "";
+    $item('#personalSummaryContainer').toggle(hasPersonalSummary);
+    
+    if (hasPersonalSummary) {
+        $item('#personalSummaryLabel').text = "Owner's Personal Summary";
+        $item('#personalSummaryText').text = itemData.personalTradeDescription;
+    }
     
     // Set genre tags
     const $tagsContainer = $item('#genreTags');
@@ -100,18 +150,12 @@ $w('#listingsRepeater').onItemReady(($item, itemData) => {
         $tagsContainer.appendChild(tag);
     });
     
-    // Handle "Read more" toggle
-    $item('#readMoreButton').onClick(() => {
-        $item('#detailsContent').toggle();
-        $item('#readMoreButton').text = 
-            $item('#detailsContent').visible ? "Read less" : "Read more";
-    });
-    
     // Handle contact button
     $item('#contactButton').onClick(() => {
         wixWindow.openLightbox("ContactUserLightbox", {
             ownerId: itemData.ownerUserId,
-            bookId: itemData._id
+            bookId: itemData._id,
+            bookTitle: itemData.title
         });
     });
     
