@@ -87,6 +87,9 @@ $w('#listingsRepeater').onItemReady(($item, itemData) => {
     $item('#conditionDescription').text = itemData.conditionDescription;
     $item('#lookingForText').text = `Looking for: ${itemData.lookingFor}`;
     
+    // NEW: Set personal description
+    $item('#personalDescription').text = itemData.personalTradeDescription;
+    
     // Set genre tags
     const $tagsContainer = $item('#genreTags');
     $tagsContainer.innerHTML = "";
