@@ -15,7 +15,7 @@ $w.onReady(async () => {
         return;
     }
     
-    // Set up genre selection
+    // Set up genre options
     const genres = [
         "Classics", "Memoirs", "Historical Fiction", "Novels", "Mysteries", 
         "Comedy", "Fantasy", "Science Fiction", "Non-Fiction", "History",
@@ -64,6 +64,7 @@ async function createListing() {
     const lookingFor = $w('#lookingFor').value;
     const location = $w('#locationInput').value;
     const maxDistance = parseInt($w('#distanceSlider').value);
+    const personalDescription = $w('#personalDescription').value; // NEW FIELD
     
     // Get selected genres
     const selectedGenres = [];
@@ -73,12 +74,13 @@ async function createListing() {
     
     // Create book listing
     try {
-        const newBook = await wixData.insert("books", {
+        await wixData.insert("books", {
             title: bookTitle,
             author: bookAuthor,
             condition: bookCondition,
             conditionDescription,
             lookingFor,
+            personalTradeDescription: personalDescription, // NEW FIELD
             location,
             maxDistance,
             genres: selectedGenres,
@@ -87,20 +89,6 @@ async function createListing() {
             createdAt: new Date(),
             bookCover: uploadedCoverUrl
         });
-        
-        // Update libraries with new listing
-        const userLibrary = await wixData.query("libraries")
-            .eq("ownerUserId", currentUser.id)
-            .find()
-            .then(({ items }) => items[0]);
-        
-        if (userLibrary) {
-            const updatedListings = [...(userLibrary.bookListings || []), newBook._id];
-            await wixData.update("libraries", {
-                _id: userLibrary._id,
-                bookListings: updatedListings
-            });
-        }
         
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Trade listing created successfully!"
