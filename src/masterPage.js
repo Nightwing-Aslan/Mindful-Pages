@@ -8,4 +8,14 @@ $w.onReady(() => {
     document.head.appendChild(styleLink);
     
     initDailyReset();
+    // In masterPage.js
+async function updateNotificationBadge() {
+    const unreadCount = await wixData.query("Notifications")
+        .eq("userId", currentUser.id)
+        .eq("read", false)
+        .count()
+        .then(({ totalCount }) => totalCount);
+    
+    $w('#notificationBadge').text = unreadCount > 0 ? unreadCount : "";
+}
 });
