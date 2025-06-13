@@ -1,12 +1,17 @@
 import { currentUser } from 'wix-users';
+import wixData from 'wix-data';
+import wixWindow from 'wix-window';
 
 $w.onReady(() => {
+    const context = wixWindow.lightbox.getContext();
+    $w('#bookTitle').text = context.bookTitle || "this book";
     $w('#sendMessage').onClick(sendMessage);
+    $w('#cancelButton').onClick(() => wixWindow.closeLightbox());
 });
 
 async function sendMessage() {
     const context = wixWindow.lightbox.getContext();
-    const message = $w('#messageInput').value;
+    const message = $w('#messageInput').value.trim();
     
     if (!message) {
         $w('#errorText').text = "Please enter a message";
@@ -15,9 +20,19 @@ async function sendMessage() {
     }
     
     try {
-        // In a real implementation, you would send this to a messaging system
-        // For now, we'll just show a success message
+        // Create message record
+        await wixData.insert("TradeMessages", {
+            fromUserId: currentUser.id,
+            toUserId: context.ownerId,
+            bookId: context.bookId,
+            message: message,
+            timestamp: new Date(),
+            read: false
+        });
+        
         wixWindow.closeLightbox();
+        
+        // Show success message
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Message sent successfully!"
         });
