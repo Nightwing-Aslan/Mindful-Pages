@@ -1,10 +1,46 @@
 // API Reference: https://www.wix.com/velo/reference/api-overview/introduction
 // “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
 
-$w.onReady(function () {
-    // Write your JavaScript here
+import { currentUser } from 'wix-users';
+import wixData from 'wix-data';
 
-    // To select an element by ID use: $w('#elementID')
-
-    // Click 'Preview' to run your code
+$w.onReady(async function () {
+    if (!currentUser.loggedIn) {
+        await currentUser.promptLogin();
+    }
+    
+    // Load user's streak
+    const streak = await getCurrentStreak();
+    $w('#streakCounter').text = streak.toString();
 });
+
+async function getCurrentStreak() {
+    try {
+        // Get yesterday's date in UK format
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const ukDate = formatUKDate(yesterday);
+        
+        // Get latest stats
+        const stats = await wixData.query("DailyStats")
+            .eq("userId", currentUser.id)
+            .le("date", ukDate)
+            .descending("date")
+            .find()
+            .then(({ items }) => items[0]);
+            
+        return stats ? stats.currentStreak : 0;
+    } catch (error) {
+        console.error("Error loading streak:", error);
+        return 0;
+    }
+}
+
+function formatUKDate(date) {
+    // UK time formatting (same as in game)
+    const isDST = date.getMonth() > 2 && date.getMonth() < 10;
+    const ukOffset = isDST ? 60 : 0;
+    return new Date(date.getTime() + (ukOffset * 60 * 1000))
+        .toISOString()
+        .split('T')[0];
+}
