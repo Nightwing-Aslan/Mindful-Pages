@@ -50,17 +50,14 @@ $w('#offersRepeater').onItemReady(($item, offer) => {
     $item('#fromUserName').text = `From: ${offer.fromUserName || "Another Trader"}`;
     $item('#timestamp').text = formatDate(offer.timestamp);
     $item('#offerMessage').text = offer.message;
-    
-    // Set book title only
     $item('#bookTitle').text = offer.bookTitle;
     
-    // Set offer status
-    $item('#offerStatus').text = offer.status === "pending" ? 
-        "Pending your decision" : 
-        `Offer ${offer.status}`;
+    // Check if book is already traded
+    const isBookTraded = offer.bookStatus === "traded";
     
-    // Handle different offer states
-    if (offer.status === "pending") {
+    if (isBookTraded) {
+        showBookTraded($item, offer);
+    } else if (offer.status === "pending") {
         showPendingOffer($item, offer);
     } else if (offer.status === "declined") {
         showDeclinedOffer($item, offer);
@@ -69,18 +66,34 @@ $w('#offersRepeater').onItemReady(($item, offer) => {
     }
 });
 
+function showBookTraded($item, offer) {
+    $item('#acceptButton').hide();
+    $item('#declineButton').hide();
+    $item('#rejectionControls').hide();
+    $item('#counterRejectionControls').hide();
+    $item('#finalStatus').show();
+    
+    $item('#finalStatus').text("Book already traded");
+    $item('#statusNote').text("This book has been traded to another user").show();
+}
+
 function showPendingOffer($item, offer) {
     $item('#acceptButton').show();
     $item('#declineButton').show();
     $item('#rejectionControls').hide();
     $item('#counterRejectionControls').hide();
     $item('#finalStatus').hide();
+    $item('#statusNote').hide();
     
     $item('#acceptButton').onClick(async () => {
-        await updateOfferStatus(offer._id, "accepted");
+        // Accept the offer
+        await acceptOffer(offer);
         $item('#finalStatus').text("Offer Accepted").show();
         $item('#acceptButton').hide();
         $item('#declineButton').hide();
+        
+        // Reject all other offers for this book
+        await rejectOtherOffers(offer.bookId);
     });
     
     $item('#declineButton').onClick(() => {
@@ -96,7 +109,7 @@ function showPendingOffer($item, offer) {
             return;
         }
         
-        await updateOfferStatus(offer._id, "declined", rejectionReason);
+        await declineOffer(offer, rejectionReason);
         $item('#rejectionControls').hide();
         $item('#counterRejectionControls').show();
     });
@@ -108,10 +121,11 @@ function showDeclinedOffer($item, offer) {
     $item('#rejectionControls').hide();
     $item('#counterRejectionControls').show();
     $item('#finalStatus').hide();
+    $item('#statusNote').hide();
     
     // Show rejection reason if exists
     if (offer.rejectionReason) {
-        $item('#rejectionReasonDisplay').text(offer.rejectionReason).show();
+        $item('#rejectionReasonDisplay').text(`Rejection reason: ${offer.rejectionReason}`).show();
     }
     
     // Handle counter-rejection actions
@@ -122,10 +136,10 @@ function showDeclinedOffer($item, offer) {
     });
     
     $item('#counterRejection').onClick(() => {
-        wixWindow.openLightbox("ContactUserLightbox", {
-            userId: offer.fromUserId,
-            message: `Regarding your offer for "${offer.bookTitle}": `
-        });
+        $item('#counterRejectionControls').hide();
+        $item('#rejectionControls').show();
+        $item('#rejectionReason').value = "";
+        $item('#rejectionError').hide();
     });
 }
 
@@ -135,12 +149,83 @@ function showResolvedOffer($item, offer) {
     $item('#rejectionControls').hide();
     $item('#counterRejectionControls').hide();
     $item('#finalStatus').show();
+    $item('#statusNote').hide();
     
     $item('#finalStatus').text(
         offer.status === "accepted" ? "Offer Accepted" :
         offer.status === "rejection_accepted" ? "Rejection Accepted" :
         "Offer Resolved"
     );
+}
+
+async function acceptOffer(offer) {
+    try {
+        // Update book status to traded
+        await wixData.update("books", {
+            _id: offer.bookId,
+            status: "traded"
+        });
+        
+        // Update offer status
+        await updateOfferStatus(offer._id, "accepted");
+        
+    } catch (error) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: `Error accepting offer: ${error.message}`
+        });
+    }
+}
+
+async function declineOffer(offer, rejectionReason) {
+    try {
+        await updateOfferStatus(offer._id, "declined", rejectionReason);
+        
+        // Notify the sender
+        await wixData.insert("Notifications", {
+            userId: offer.fromUserId,
+            message: `Your offer for "${offer.bookTitle}" was declined. Reason: ${rejectionReason}`,
+            timestamp: new Date(),
+            read: false
+        });
+        
+    } catch (error) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: `Error declining offer: ${error.message}`
+        });
+    }
+}
+
+async function rejectOtherOffers(bookId) {
+    try {
+        // Get all pending offers for this book
+        const offers = await wixData.query("TradeOffers")
+            .eq("bookId", bookId)
+            .eq("status", "pending")
+            .find()
+            .then(({ items }) => items);
+        
+        // Update all other offers
+        const updatePromises = offers.map(offer => 
+            updateOfferStatus(offer._id, "declined", "Book has been traded to someone else")
+        );
+        
+        await Promise.all(updatePromises);
+        
+        // Notify all other offerers
+        const notificationPromises = offers.map(offer => 
+            wixData.insert("Notifications", {
+                userId: offer.fromUserId,
+                message: `The book "${offer.bookTitle}" has been traded to someone else`,
+                timestamp: new Date(),
+                read: false
+            })
+        );
+        
+        await Promise.all(notificationPromises);
+        
+    } catch (error) {
+        console.error("Error rejecting other offers:", error);
+    }
 }
 
 async function updateOfferStatus(offerId, status, rejectionReason = "") {
@@ -155,14 +240,8 @@ async function updateOfferStatus(offerId, status, rejectionReason = "") {
             ...updateData
         });
         
-        wixWindow.openLightbox("SuccessLightbox", {
-            message: `Offer ${status.replace("_", " ")} successfully!`
-        });
-        
     } catch (error) {
-        wixWindow.openLightbox("ErrorLightbox", {
-            message: `Error updating offer: ${error.message}`
-        });
+        throw new Error(`Failed to update offer status: ${error.message}`);
     }
 }
 
