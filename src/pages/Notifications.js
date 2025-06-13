@@ -3,11 +3,18 @@ import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location';
 
+// ... existing imports ...
+
 $w.onReady(async () => {
     if (!currentUser.loggedIn) {
         wixLocation.to("/login");
         return;
     }
+    
+    // Initialize UI state
+    $w('#offersContainer').hide();
+    $w('#emptyState').hide();
+    $w('#loadingIndicator').show();
     
     await loadTradeOffers();
     
@@ -19,18 +26,17 @@ $w.onReady(async () => {
 
 async function loadTradeOffers() {
     try {
-        // Get all offers for current user
         const offers = await wixData.query("TradeOffers")
             .eq("toUserId", currentUser.id)
             .descending("timestamp")
             .find()
             .then(({ items }) => items);
         
-        // Update UI
         if (offers.length > 0) {
             $w('#offersRepeater').data = offers;
-            $w('#emptyState').hide();
+            // FIX: Explicitly show container after setting data
             $w('#offersContainer').show();
+            $w('#emptyState').hide();
         } else {
             $w('#emptyState').show();
             $w('#offersContainer').hide();
@@ -45,6 +51,7 @@ async function loadTradeOffers() {
     }
 }
 
+// ... rest of your existing code ...
 $w('#offersRepeater').onItemReady(($item, offer) => {
     // Set basic offer info
     $item('#fromUserName').text = `From: ${offer.fromUserName || "Another Trader"}`;
