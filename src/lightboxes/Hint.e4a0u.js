@@ -1,10 +1,13 @@
 // API Reference: https://www.wix.com/velo/reference/api-overview/introduction
 // “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
 
-$w.onReady(function () {
-    // Write your JavaScript here
+import wixWindow from 'wix-window';
 
-    // To select an element by ID use: $w('#elementID')
-
-    // Click 'Preview' to run your code
+$w.onReady(() => {
+    const context = wixWindow.lightbox.getContext();
+    $w('#hintText').text = context.hint || "No hint available.";
+    
+    $w('#closeButton').onClick(() => {
+        wixWindow.closeLightbox();
+    });
 });
