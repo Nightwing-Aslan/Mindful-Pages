@@ -53,6 +53,7 @@ function setupUI() {
 // ------------------------ Game Logic ------------------------
 async function handleAnswerSubmission() {
   const userAnswer = $w('#answerInput').value.trim().toLowerCase();
+  let userAnswer = $w('#answerInput').value.trim().toLowerCase().replace(/\s+/g, '');
   const currentRiddle = getCurrentRiddle();
 
   if (!currentRiddle) return; // Safety check
@@ -65,11 +66,12 @@ async function handleAnswerSubmission() {
     timestamp: new Date()
   });
 
-  if (currentRiddle.correctAnswers.includes(userAnswer)) {
-    await handleCorrectAnswer(currentRiddle._id);
-  } else {
-    await handleWrongAnswer();
-  }
+  if (currentRiddle.correctAnswers.some(ans => 
+        ans.trim().toLowerCase().replace(/\s+/g, '') === userAnswer)) {
+        await handleCorrectAnswer(currentRiddle._id);
+    } else {
+        await handleWrongAnswer();
+    }
   
   updateDisplay();
 }
@@ -124,6 +126,7 @@ function updateDisplay() {
   // Update counters
   $w('#livesCounter').text = "❤️".repeat(currentStats.livesRemaining);
   $w('#streakCounter').text = currentStats.currentStreak.toString();
+  $w('#challengeCounter').text = `${currentIndex + 1}/3`;
   
   // Clear input
   $w('#answerInput').value = "";
@@ -163,10 +166,11 @@ function getCurrentRiddle() {
 
 function showHint() {
   const currentRiddle = getCurrentRiddle();
-  if (!currentRiddle) return;
-  
-  $w('#hintText').text = currentRiddle.hint;
-  $w('#hintPopup').show();
+    if (!currentRiddle) return;
+
+    wixWindow.openLightbox("HintLightbox", {
+        hint: currentRiddle.hint
+    });
 }
 
 function getUKDateString() {
