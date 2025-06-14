@@ -12,6 +12,11 @@ $w.onReady(async function () {
     // Load user's streak
     const streak = await getCurrentStreak();
     $w('#streakCounter').text = streak.toString();
+    
+    // Add event listener for rules
+    $w('#rulesButton').onClick(() => {
+        wixWindow.openLightbox("RulesLightbox");
+    });
 });
 
 async function getCurrentStreak() {
@@ -37,7 +42,7 @@ async function getCurrentStreak() {
 }
 
 function formatUKDate(date) {
-    // UK time formatting (same as in game)
+    // UK time formatting (adjust for DST)
     const isDST = date.getMonth() > 2 && date.getMonth() < 10;
     const ukOffset = isDST ? 60 : 0;
     return new Date(date.getTime() + (ukOffset * 60 * 1000))
