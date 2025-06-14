@@ -34,7 +34,6 @@ async function loadTradeOffers() {
         
         if (offers.length > 0) {
             $w('#offersRepeater').data = offers;
-            // FIX: Explicitly show container after setting data
             $w('#offersContainer').show();
             $w('#emptyState').hide();
         } else {
@@ -51,18 +50,16 @@ async function loadTradeOffers() {
     }
 }
 
-// ... rest of your existing code ...
 $w('#offersRepeater').onItemReady(($item, offer) => {
-    // Set basic offer info
+    // Set offer details
     $item('#fromUserName').text = `From: ${offer.fromUserName || "Another Trader"}`;
     $item('#timestamp').text = formatDate(offer.timestamp);
     $item('#offerMessage').text = offer.message;
     $item('#bookTitle').text = offer.bookTitle;
+    $item('#bookCover').src = offer.bookCover || "https://example.com/default-book.jpg";
     
-    // Check if book is already traded
-    const isBookTraded = offer.bookStatus === "traded";
-    
-    if (isBookTraded) {
+    // Status-based UI
+    if (offer.bookStatus === "traded") {
         showBookTraded($item, offer);
     } else if (offer.status === "pending") {
         showPendingOffer($item, offer);
