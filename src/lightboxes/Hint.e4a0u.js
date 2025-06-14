@@ -4,12 +4,7 @@
 import wixWindow from 'wix-window';
 
 $w.onReady(() => {
-    // Get hint from lightbox context
     const context = wixWindow.lightbox.getContext();
     $w('#hintText').text = context.hint || "No hint available for this riddle.";
-    
-    // Setup close button
-    $w('#closeButton').onClick(() => {
-        wixWindow.closeLightbox();
-    });
+    $w('#closeButton').onClick(() => wixWindow.closeLightbox());
 });
