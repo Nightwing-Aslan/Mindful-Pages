@@ -23,6 +23,7 @@ $w.onReady(async () => {
     
     // Show loading
     $w('#loadingIndicator').show();
+    setupRatingSystem();
     
     try {
         // Get library details
@@ -50,6 +51,70 @@ $w.onReady(async () => {
         $w('#loadingIndicator').hide();
     }
 });
+function setupRatingSystem() {
+    // Initialize stars
+    for (let i = 1; i <= 5; i++) {
+        $w(`#star${i}`).onClick(() => submitRating(i));
+    }
+    
+    // Display current rating
+    updateRatingDisplay();
+}
+
+function updateRatingDisplay() {
+    const rating = currentLibrary.averageRating || 0;
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            $w(`#star${i}`).text = "★";
+            $w(`#star${i}`).style.color = "#FFD700"; // Gold
+        } else if (i === fullStars + 1 && hasHalfStar) {
+            $w(`#star${i}`).text = "½";
+            $w(`#star${i}`).style.color = "#FFD700";
+        } else {
+            $w(`#star${i}`).text = "☆";
+            $w(`#star${i}`).style.color = "#CCCCCC"; // Gray
+        }
+    }
+}
+
+async function submitRating(ratingValue) {
+    try {
+        // Save rating
+        await wixData.insert("library ratings", {
+            libraryId: currentLibraryId,
+            userId: currentUser.id,
+            rating: ratingValue,
+            timestamp: new Date()
+        });
+        
+        // Recalculate average
+        const allRatings = await wixData.query("library ratings")
+            .eq("libraryId", currentLibraryId)
+            .find()
+            .then(({ items }) => items);
+        
+        const totalRating = allRatings.reduce((sum, item) => sum + item.rating, 0);
+        const averageRating = totalRating / allRatings.length;
+        const ratingCount = allRatings.length;
+        
+        // Update library
+        await wixData.update("libraries", {
+            _id: currentLibraryId,
+            averageRating,
+            ratingCount
+        });
+        
+        // Refresh display
+        currentLibrary.averageRating = averageRating;
+        updateRatingDisplay();
+        
+    } catch (error) {
+        console.error("Error submitting rating:", error);
+    }
+}
 
 async function loadBooks() {
     try {
