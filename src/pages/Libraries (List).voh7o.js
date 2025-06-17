@@ -44,13 +44,55 @@ $w.onReady(async () => {
     } finally {
         $w('#loadingIndicator').hide();
     }
+    $w('#searchInput').onInput(() => loadLibraries());
+    $w('#searchButton').onClick(() => loadLibraries());
+    
+    // Add library button
+    $w('#addLibraryButton').onClick(() => {
+        wixLocation.to("/add-library");
+    });
+    
 });
 
 // Simplified location function - replace with your actual implementation
 async function getUserLocation() {
     return "London"; // Example
 }
+async function loadLibraries() {
+    try {
+        const searchTerm = $w('#searchInput').value.toLowerCase();
+        
+        // Get libraries
+        let libraries = await wixData.query("libraries")
+            .ascending("distanceFromUser")
+            .find()
+            .then(({ items }) => items);
+        
+        // Apply search filter
+        if (searchTerm) {
+            libraries = libraries.filter(library => 
+                library.name.toLowerCase().includes(searchTerm) ||
+                library.description.toLowerCase().includes(searchTerm) ||
+                library.city.toLowerCase().includes(searchTerm) ||
+                library.type.toLowerCase().includes(searchTerm) ||
+                await hasMatchingBooks(library._id, searchTerm)
+            );
+        }        
+    } catch (error) {
+    }
+}
 
+async function hasMatchingBooks(libraryId, searchTerm) {
+    const books = await wixData.query("books")
+        .eq("libraryId", libraryId)
+        .find()
+        .then(({ items }) => items);
+    
+    return books.some(book => 
+        book.title.toLowerCase().includes(searchTerm) ||
+        book.author.toLowerCase().includes(searchTerm)
+    );
+}
 $w('#librariesRepeater').onItemReady(($item, library) => {
     // Set library details
     $item('#libraryName').text = library.name;
