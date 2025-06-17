@@ -10,11 +10,15 @@ $w.onReady(async () => {
     const query = wixLocation.query;
     currentLibraryId = query.libraryId;
     
-    if (!currentLibraryId) {
-        wixWindow.openLightbox("ErrorLightbox", {
-            message: "No library specified"
+    if (currentLibrary.ownerUserId === currentUser.id) {
+        $w('#addBookButton').show();
+        $w('#addBookButton').onClick(() => {
+            wixWindow.openLightbox("AddBookLightbox", {
+                libraryId: currentLibraryId
+            });
         });
-        return;
+    } else {
+        $w('#addBookButton').hide();
     }
     
     // Show loading
