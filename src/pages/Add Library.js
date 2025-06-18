@@ -18,41 +18,25 @@ $w.onReady(() => {
         "Corporation"
     ];
     
-    renderTypeOptions(libraryTypes);
+    // Populate type dropdown
+    $w('#libraryType').options = libraryTypes.map(type => ({
+        label: type,
+        value: type
+    }));
     
     // Setup form submission
     $w('#createLibrary').onClick(createLibrary);
 });
 
-function renderTypeOptions(types) {
-    const $container = $w('#typeContainer');
-    $container.innerHTML = "";
-    
-    types.forEach(type => {
-        const option = document.createElement("div");
-        option.className = "type-option";
-        option.textContent = type;
-        option.onclick = () => {
-            // Toggle selection
-            document.querySelectorAll('.type-option').forEach(el => 
-                el.classList.remove('selected'));
-            option.classList.add('selected');
-            $w('#libraryType').value = type;
-        };
-        $container.appendChild(option);
-    });
-}
-
 async function createLibrary() {
     // Get form values
     const name = $w('#libraryName').value;
     const description = $w('#libraryDescription').value;
-    const address = $w('#libraryAddress').value;
-    const city = $w('#libraryCity').value;
+    const location = $w('#libraryLocation').value; // Text input for location
     const type = $w('#libraryType').value;
     
     // Validation
-    if (!name || !address || !city || !type) {
+    if (!name || !location || !type) {
         wixWindow.openLightbox("ErrorLightbox", {
             message: "Please fill all required fields"
         });
@@ -64,8 +48,7 @@ async function createLibrary() {
         await wixData.insert("libraries", {
             name,
             description,
-            address,
-            city,
+            location,
             type,
             ownerUserId: currentUser.id,
             createdAt: new Date(),
