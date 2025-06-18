@@ -142,14 +142,16 @@ async function loadBooks() {
 }
 
 $w('#booksRepeater').onItemReady(($item, book) => {
-    // Set book details
     $item('#bookTitle').text = book.title;
-    $item('#bookAuthor').text = book.author;
-    $item('#bookCover').src = book.bookCover || "https://example.com/default-book.jpg";
-    $item('#bookCondition').text = `Condition: ${book.condition}`;
+    $item('#bookAuthor').text = `by ${book.author}`;
     
-    // Handle click
-    $item('#bookContainer').onClick(() => {
-        wixLocation.to(`/book-details?bookId=${book._id}`);
-    });
+    if (book.releaseDate) {
+        const year = new Date(book.releaseDate).getFullYear();
+        $item('#releaseDate').text = `Published: ${year}`;
+    } else {
+        $item('#releaseDate').text = "";
+    }
+    
+    $item('#bookDescription').text = book.description || "No description available";
+    $item('#bookQuantity').text = `Available: ${book.quantity} copy${book.quantity !== 1 ? 'ies' : ''}`;
 });
