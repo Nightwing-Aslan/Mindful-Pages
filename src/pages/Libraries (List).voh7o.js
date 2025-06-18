@@ -1,6 +1,3 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
-
 import { currentUser } from 'wix-users';
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
@@ -17,19 +14,44 @@ $w.onReady(async () => {
     $w('#librariesRepeater').hide();
     $w('#noResults').hide();
     
+    // Setup search with unique ID
+    $w('#librarySearchInput').onInput(() => loadLibraries());
+    $w('#librarySearchButton').onClick(() => loadLibraries()); // Unique button ID
+    
+    // Add library button
+    $w('#addLibraryButton').onClick(() => {
+        wixLocation.to("/add-library");
+    });
+    
+    // Load libraries
+    await loadLibraries();
+});
+
+async function loadLibraries() {
     try {
-        // Get user location (simplified - in real app, get from user profile)
-        const userLocation = await getUserLocation();
+        const searchTerm = $w('#librarySearchInput').value.toLowerCase();
         
-        // Get libraries sorted by distance
+        // Get all libraries
         const libraries = await wixData.query("libraries")
-            .ascending("distanceFromUser")
+            .ascending("name")
             .find()
             .then(({ items }) => items);
         
+        // Apply search filter
+        let filteredLibraries = libraries;
+        if (searchTerm) {
+            filteredLibraries = libraries.filter(library => 
+                library.name.toLowerCase().includes(searchTerm) ||
+                library.description.toLowerCase().includes(searchTerm) ||
+                library.type.toLowerCase().includes(searchTerm) ||
+                library.location.toLowerCase().includes(searchTerm) ||
+                await hasMatchingBooks(library._id, searchTerm)
+            );
+        }
+        
         // Update UI
-        if (libraries.length > 0) {
-            $w('#librariesRepeater').data = libraries;
+        if (filteredLibraries.length > 0) {
+            $w('#librariesRepeater').data = filteredLibraries;
             $w('#librariesRepeater').show();
             $w('#noResults').hide();
         } else {
@@ -44,42 +66,6 @@ $w.onReady(async () => {
     } finally {
         $w('#loadingIndicator').hide();
     }
-    $w('#searchInput').onInput(() => loadLibraries());
-    $w('#searchButton').onClick(() => loadLibraries());
-    
-    // Add library button
-    $w('#addLibraryButton').onClick(() => {
-        wixLocation.to("/add-library");
-    });
-    
-});
-
-// Simplified location function - replace with your actual implementation
-async function getUserLocation() {
-    return "London"; // Example
-}
-async function loadLibraries() {
-    try {
-        const searchTerm = $w('#searchInput').value.toLowerCase();
-        
-        // Get libraries
-        let libraries = await wixData.query("libraries")
-            .ascending("distanceFromUser")
-            .find()
-            .then(({ items }) => items);
-        
-        // Apply search filter
-        if (searchTerm) {
-            libraries = libraries.filter(library => 
-                library.name.toLowerCase().includes(searchTerm) ||
-                library.description.toLowerCase().includes(searchTerm) ||
-                library.city.toLowerCase().includes(searchTerm) ||
-                library.type.toLowerCase().includes(searchTerm) ||
-                await hasMatchingBooks(library._id, searchTerm)
-            );
-        }        
-    } catch (error) {
-    }
 }
 
 async function hasMatchingBooks(libraryId, searchTerm) {
@@ -90,23 +76,28 @@ async function hasMatchingBooks(libraryId, searchTerm) {
     
     return books.some(book => 
         book.title.toLowerCase().includes(searchTerm) ||
-        book.author.toLowerCase().includes(searchTerm)
+        book.author.toLowerCase().includes(searchTerm) ||
+        (book.releaseYear && book.releaseYear.toString().includes(searchTerm)) ||
+        book.description.toLowerCase().includes(searchTerm)
     );
 }
+
 $w('#librariesRepeater').onItemReady(($item, library) => {
-    // Set library details
+    // Set library details with summary
     $item('#libraryName').text = library.name;
-    $item('#libraryCity').text = library.city;
-    $item('#distance').text = `${library.distanceFromUser} miles`;
-    $item('#libraryImage').src = library.libraryPicture || "https://example.com/default-library.jpg";
-    $item('#libraryDescription').text = library.description || "No description available";
-    // Create star rating
-    const rating = library.star || 0;
-    $item('#ratingStars').text = "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating));
-    $item('#ratingValue').text = rating.toFixed(1);
+    $item('#libraryType').text = library.type;
+    $item('#libraryLocation').text = library.location;
+    $item('#librarySummary').text = library.description || "No description available";
     
-    // Handle "Read More" button
-    $item('#readMoreButton').onClick(() => {
+    // Display average rating
+    if (library.averageRating > 0) {
+        $item('#libraryRating').text = `★ ${library.averageRating.toFixed(1)} (${library.ratingCount})`;
+    } else {
+        $item('#libraryRating').text = "No ratings yet";
+    }
+    
+    // Handle click
+    $item('#libraryCard').onClick(() => {
         wixLocation.to(`/library-details?libraryId=${library._id}`);
     });
 });
