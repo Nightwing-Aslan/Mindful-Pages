@@ -14,7 +14,7 @@ $w.onReady(async () => {
         
         // Populate form
         $w('#bookTitle').text = currentBook.title;
-        $w('#bookAuthor').text = `by ${currentBook.author}`;
+        $w('#bookAuthor').text = currentBook.author;
         $w('#releaseYear').text = currentBook.releaseYear ? `(${currentBook.releaseYear})` : '';
         $w('#bookDescription').value = currentBook.description || '';
         $w('#bookQuantity').value = currentBook.quantity || 1;
