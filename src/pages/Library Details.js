@@ -28,8 +28,6 @@ $w.onReady(async () => {
         // Set library info
         $w('#libraryTitle').text = currentLibrary.name;
         $w('#libraryDescription').text = currentLibrary.description;
-        $w('#libraryAddress').text = currentLibrary.address;
-        $w('#libraryType').text = currentLibrary.type;
         
         // Set up the gallery - using Wix Slide Deck Gallery
         if (currentLibrary.gallery && currentLibrary.gallery.length > 0) {
@@ -42,6 +40,9 @@ $w.onReady(async () => {
         } else {
             $w('#noGalleryMessage').show();
         }
+        
+        // Set up star rating input - using Wix Star Rating element
+        $w('#starRating').value = currentLibrary.averageRating || 0;
         
         // Display average rating
         $w('#averageRating').text = currentLibrary.averageRating?.toFixed(1) || "0.0";
@@ -74,7 +75,6 @@ $w.onReady(async () => {
     }
 });
 
-
 async function loadBooks() {
     try {
         // Get books for this library
@@ -94,7 +94,6 @@ async function loadBooks() {
         }
         
     } catch (error) {
-        console.error("Error loading books:", error);
         $w('#errorText').text = "Error loading books";
         $w('#errorText').show();
     }
