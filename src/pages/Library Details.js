@@ -28,20 +28,20 @@ $w.onReady(async () => {
         // Set library info
         $w('#libraryTitle').text = currentLibrary.name;
         $w('#libraryDescription').text = currentLibrary.description;
+        $w('#libraryAddress').text = currentLibrary.address;
+        $w('#libraryType').text = currentLibrary.type;
         
         // Set up the gallery - using Wix Slide Deck Gallery
         if (currentLibrary.gallery && currentLibrary.gallery.length > 0) {
             $w('#libraryGallery').items = currentLibrary.gallery.map(item => ({
                 media: item.image,
-                title: item.title,
-                description: item.description
+                title: item.title || "",
+                description: item.description || ""
             }));
+            $w('#noGalleryMessage').hide();
         } else {
             $w('#noGalleryMessage').show();
         }
-        
-        // Set up star rating input - using Wix Star Rating element
-        $w('#starRating').value = currentLibrary.averageRating || 0;
         
         // Display average rating
         $w('#averageRating').text = currentLibrary.averageRating?.toFixed(1) || "0.0";
@@ -73,6 +73,7 @@ $w.onReady(async () => {
         $w('#loadingIndicator').hide();
     }
 });
+
 
 async function loadBooks() {
     try {
