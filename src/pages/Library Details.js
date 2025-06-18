@@ -28,15 +28,24 @@ $w.onReady(async () => {
         // Set library info
         $w('#libraryTitle').text = currentLibrary.name;
         $w('#libraryDescription').text = currentLibrary.description;
-        $w('#libraryAddress').text = currentLibrary.address;
-        $w('#libraryType').text = currentLibrary.type;
+        
+        // Set up the gallery - using Wix Slide Deck Gallery
+        if (currentLibrary.gallery && currentLibrary.gallery.length > 0) {
+            $w('#libraryGallery').items = currentLibrary.gallery.map(item => ({
+                media: item.image,
+                title: item.title,
+                description: item.description
+            }));
+        } else {
+            $w('#noGalleryMessage').show();
+        }
+        
+        // Set up star rating input - using Wix Star Rating element
+        $w('#starRating').value = currentLibrary.averageRating || 0;
         
         // Display average rating
-        $w('#averageRating').text = currentLibrary.averageRating.toFixed(1);
-        $w('#ratingCount').text = `${currentLibrary.ratingCount} ratings`;
-        
-        // Setup slide deck gallery
-        setupGallery();
+        $w('#averageRating').text = currentLibrary.averageRating?.toFixed(1) || "0.0";
+        $w('#ratingCount').text = `${currentLibrary.ratingCount || 0} ratings`;
         
         // Show add book button if owner
         if (currentLibrary.ownerUserId === currentUser.id) {
@@ -53,8 +62,8 @@ $w.onReady(async () => {
         // Load books
         await loadBooks();
         
-        // Setup rating system
-        setupRatingSystem();
+        // Setup rating submission
+        $w('#submitRating').onClick(submitRating);
         
     } catch (error) {
         wixWindow.openLightbox("ErrorLightbox", {
@@ -64,24 +73,6 @@ $w.onReady(async () => {
         $w('#loadingIndicator').hide();
     }
 });
-
-function setupGallery() {
-    // Get gallery items from library data
-    const galleryItems = currentLibrary.gallery || [];
-    
-    if (galleryItems.length > 0) {
-        // Set slide deck gallery items
-        $w('#libraryGallery').items = galleryItems.map(item => ({
-            image: item.image,
-            title: item.title,
-            description: item.description
-        }));
-        $w('#noGalleryMessage').hide();
-    } else {
-        $w('#libraryGallery').hide();
-        $w('#noGalleryMessage').show();
-    }
-}
 
 async function loadBooks() {
     try {
@@ -108,33 +99,16 @@ async function loadBooks() {
     }
 }
 
-function setupRatingSystem() {
-    // Initialize stars
-    for (let i = 1; i <= 5; i++) {
-        $w(`#star${i}`).onClick(() => submitRating(i));
-    }
-    
-    // Display current rating
-    updateRatingDisplay();
-}
-
-function updateRatingDisplay() {
-    const rating = currentLibrary.averageRating || 0;
-    const fullStars = Math.floor(rating);
-    
-    for (let i = 1; i <= 5; i++) {
-        if (i <= fullStars) {
-            $w(`#star${i}`).text = "★";
-            $w(`#star${i}`).style.color = "#FFD700"; // Gold
-        } else {
-            $w(`#star${i}`).text = "☆";
-            $w(`#star${i}`).style.color = "#CCCCCC"; // Gray
-        }
-    }
-}
-
-async function submitRating(ratingValue) {
+async function submitRating() {
     try {
+        const ratingValue = $w('#starRating').value;
+        
+        if (!ratingValue || ratingValue < 1 || ratingValue > 5) {
+            $w('#ratingError').text = "Please select a rating between 1-5 stars";
+            $w('#ratingError').show();
+            return;
+        }
+        
         // Save rating
         await wixData.insert("library_ratings", {
             libraryId: currentLibraryId,
@@ -165,10 +139,15 @@ async function submitRating(ratingValue) {
         currentLibrary.ratingCount = ratingCount;
         $w('#averageRating').text = averageRating.toFixed(1);
         $w('#ratingCount').text = `${ratingCount} ratings`;
-        updateRatingDisplay();
+        $w('#ratingError').hide();
+        
+        wixWindow.openLightbox("SuccessLightbox", {
+            message: "Rating submitted successfully!"
+        });
         
     } catch (error) {
-        console.error("Error submitting rating:", error);
+        $w('#ratingError').text = "Error submitting rating: " + error.message;
+        $w('#ratingError').show();
     }
 }
 
