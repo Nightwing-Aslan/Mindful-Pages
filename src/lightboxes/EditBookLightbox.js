@@ -13,9 +13,9 @@ $w.onReady(async () => {
         currentBook = await wixData.get("books", bookId);
         
         // Populate form
-        $w('#bookTitle').value = currentBook.title;
-        $w('#bookAuthor').value = currentBook.author;
-        $w('#releaseYear').value = currentBook.releaseYear || '';
+        $w('#bookTitle').text = currentBook.title;
+        $w('#bookAuthor').text = `by ${currentBook.author}`;
+        $w('#releaseYear').text = currentBook.releaseYear ? `(${currentBook.releaseYear})` : '';
         $w('#bookDescription').value = currentBook.description || '';
         $w('#bookQuantity').value = currentBook.quantity || 1;
         
