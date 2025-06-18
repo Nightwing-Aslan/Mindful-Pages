@@ -10,20 +10,15 @@ $w.onReady(async () => {
     const query = wixLocation.query;
     currentLibraryId = query.libraryId;
     
-    if (currentLibrary.ownerUserId === currentUser.id) {
-        $w('#addBookButton').show();
-        $w('#addBookButton').onClick(() => {
-            wixWindow.openLightbox("AddBookLightbox", {
-                libraryId: currentLibraryId
-            });
+    if (!currentLibraryId) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: "No library specified"
         });
-    } else {
-        $w('#addBookButton').hide();
+        return;
     }
     
     // Show loading
     $w('#loadingIndicator').show();
-    setupRatingSystem();
     
     try {
         // Get library details
@@ -31,14 +26,36 @@ $w.onReady(async () => {
         
         // Set library info
         $w('#libraryTitle').text = currentLibrary.name;
-        $w('#libraryImage').src = currentLibrary.libraryPicture || "https://example.com/default-library.jpg";
         $w('#libraryDescription').text = currentLibrary.description;
         
-        // Create star rating
-        const rating = currentLibrary.star || 0;
-        $w('#ratingStars').text = "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating));
-        $w('#ratingValue').text = rating.toFixed(1);
-        $w('#ratingCount').text = `${currentLibrary.ratingCount || 0} ratings`;
+        // Set up slide deck gallery
+        if (currentLibrary.gallery && currentLibrary.gallery.length > 0) {
+            $w('#libraryGallery').items = currentLibrary.gallery.map(item => ({
+                image: item.image,
+                title: item.title,
+                description: item.description
+            }));
+        } else {
+            $w('#noGalleryMessage').show();
+            $w('#libraryGallery').hide();
+        }
+        
+        // Display average rating
+        $w('#submitRating').onClick(submitRating);
+        $w('#averageRating').text = currentLibrary.averageRating.toFixed(1);
+        $w('#ratingCount').text = `${currentLibrary.ratingCount} ratings`;
+        
+        // Show add book button if owner
+        if (currentLibrary.ownerUserId === currentUser.id) {
+            $w('#addBookButton').show();
+            $w('#addBookButton').onClick(() => {
+                wixWindow.openLightbox("AddBookLightbox", {
+                    libraryId: currentLibraryId
+                });
+            });
+        } else {
+            $w('#addBookButton').hide();
+        }
         
         // Load books
         await loadBooks();
@@ -51,70 +68,6 @@ $w.onReady(async () => {
         $w('#loadingIndicator').hide();
     }
 });
-function setupRatingSystem() {
-    // Initialize stars
-    for (let i = 1; i <= 5; i++) {
-        $w(`#star${i}`).onClick(() => submitRating(i));
-    }
-    
-    // Display current rating
-    updateRatingDisplay();
-}
-
-function updateRatingDisplay() {
-    const rating = currentLibrary.averageRating || 0;
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    
-    for (let i = 1; i <= 5; i++) {
-        if (i <= fullStars) {
-            $w(`#star${i}`).text = "★";
-            $w(`#star${i}`).style.color = "#FFD700"; // Gold
-        } else if (i === fullStars + 1 && hasHalfStar) {
-            $w(`#star${i}`).text = "½";
-            $w(`#star${i}`).style.color = "#FFD700";
-        } else {
-            $w(`#star${i}`).text = "☆";
-            $w(`#star${i}`).style.color = "#CCCCCC"; // Gray
-        }
-    }
-}
-
-async function submitRating(ratingValue) {
-    try {
-        // Save rating
-        await wixData.insert("library ratings", {
-            libraryId: currentLibraryId,
-            userId: currentUser.id,
-            rating: ratingValue,
-            timestamp: new Date()
-        });
-        
-        // Recalculate average
-        const allRatings = await wixData.query("library ratings")
-            .eq("libraryId", currentLibraryId)
-            .find()
-            .then(({ items }) => items);
-        
-        const totalRating = allRatings.reduce((sum, item) => sum + item.rating, 0);
-        const averageRating = totalRating / allRatings.length;
-        const ratingCount = allRatings.length;
-        
-        // Update library
-        await wixData.update("libraries", {
-            _id: currentLibraryId,
-            averageRating,
-            ratingCount
-        });
-        
-        // Refresh display
-        currentLibrary.averageRating = averageRating;
-        updateRatingDisplay();
-        
-    } catch (error) {
-        console.error("Error submitting rating:", error);
-    }
-}
 
 async function loadBooks() {
     try {
@@ -142,16 +95,72 @@ async function loadBooks() {
 }
 
 $w('#booksRepeater').onItemReady(($item, book) => {
+    // Set book details
     $item('#bookTitle').text = book.title;
     $item('#bookAuthor').text = `by ${book.author}`;
+    $item('#releaseYear').text = book.releaseYear ? `(${book.releaseYear})` : '';
+    $item('#bookDescription').text = book.description || "No description available";
+    $item('#bookQuantity').text = `Available: ${book.quantity}`;
     
-    if (book.releaseDate) {
-        const year = new Date(book.releaseDate).getFullYear();
-        $item('#releaseDate').text = `Published: ${year}`;
+    // Show edit button for owner
+    if (currentLibrary.ownerUserId === currentUser.id) {
+        $item('#editBookButton').show();
+        $item('#editBookButton').onClick(() => {
+            wixWindow.openLightbox("EditBookLightbox", {
+                bookId: book._id
+            });
+        });
     } else {
-        $item('#releaseDate').text = "";
+        $item('#editBookButton').hide();
+    }
+});
+async function submitRating() {
+    const ratingValue = parseFloat($w('#ratingInput').value);
+    
+    if (isNaN(ratingValue) || ratingValue < 0 || ratingValue > 5) {
+        $w('#ratingError').text = "Please enter a valid rating (0-5)";
+        $w('#ratingError').show();
+        return;
     }
     
-    $item('#bookDescription').text = book.description || "No description available";
-    $item('#bookQuantity').text = `Available: ${book.quantity} copy${book.quantity !== 1 ? 'ies' : ''}`;
-});
+    try {
+        // Save rating
+        await wixData.insert("library_ratings", {
+            libraryId: currentLibraryId,
+            userId: currentUser.id,
+            rating: ratingValue,
+            timestamp: new Date()
+        });
+        
+        // Recalculate average
+        const ratings = await wixData.query("library_ratings")
+            .eq("libraryId", currentLibraryId)
+            .find()
+            .then(({ items }) => items);
+        
+        const total = ratings.reduce((sum, r) => sum + r.rating, 0);
+        const average = total / ratings.length;
+        const ratingCount = ratings.length;
+        
+        // Update library
+        await wixData.update("libraries", {
+            _id: currentLibraryId,
+            averageRating: average,
+            ratingCount
+        });
+        
+        // Update UI
+        $w('#averageRating').text = average.toFixed(1);
+        $w('#ratingCount').text = `${ratingCount} ratings`;
+        $w('#ratingInput').value = "";
+        $w('#ratingError').hide();
+        
+        wixWindow.openLightbox("SuccessLightbox", {
+            message: "Rating submitted successfully!"
+        });
+        
+    } catch (error) {
+        $w('#ratingError').text = "Error submitting rating: " + error.message;
+        $w('#ratingError').show();
+    }
+}
