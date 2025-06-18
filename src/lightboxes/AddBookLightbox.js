@@ -14,7 +14,7 @@ async function createBook() {
     // Get form values
     const title = $w('#bookTitle').value;
     const author = $w('#bookAuthor').value;
-    const releaseDate = $w('#releaseDate').value;
+    const releaseYear = parseInt($w('#releaseYear').value); // Year only
     const description = $w('#bookDescription').value;
     const quantity = parseInt($w('#bookQuantity').value) || 1;
     
@@ -25,12 +25,18 @@ async function createBook() {
         return;
     }
     
+    if (isNaN(releaseYear) || releaseYear < 0 || releaseYear > new Date().getFullYear()) {
+        $w('#errorText').text = "Please enter a valid release year";
+        $w('#errorText').show();
+        return;
+    }
+    
     try {
         // Create book
         await wixData.insert("books", {
             title,
             author,
-            releaseDate,
+            releaseYear,
             description,
             quantity,
             libraryId,
