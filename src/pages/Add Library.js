@@ -12,20 +12,14 @@ $w.onReady(() => {
         return;
     }
     
-    // Setup library type options
-    const libraryTypes = [
+    // Setup library type dropdown
+    $w('#libraryType').options = [
         "Bookstore", 
         "Public Library", 
         "Private Library", 
         "Small Business", 
         "Corporation"
-    ];
-    
-    // Populate type dropdown
-    $w('#libraryType').options = libraryTypes.map(type => ({
-        label: type,
-        value: type
-    }));
+    ].map(type => ({ label: type, value: type }));
     
     // Setup gallery upload
     $w('#galleryUpload').onChange(handleGalleryUpload);
@@ -62,10 +56,7 @@ async function handleGalleryUpload(event) {
         
         // Update gallery preview
         $w('#galleryPreview').data = uploadedGallery;
-        
-        // Reset status
         $w('#uploadStatus').text = "Upload completed!";
-        setTimeout(() => $w('#uploadStatus').hide(), 2000);
         
     } catch (error) {
         $w('#uploadStatus').text = "Upload failed: " + error.message;
@@ -77,6 +68,10 @@ async function handleGalleryUpload(event) {
 function removeImage(imageId) {
     uploadedGallery = uploadedGallery.filter(img => img.id !== imageId);
     $w('#galleryPreview').data = uploadedGallery;
+    
+    if (uploadedGallery.length === 0) {
+        $w('#uploadStatus').hide();
+    }
 }
 
 async function createLibrary() {
@@ -86,7 +81,7 @@ async function createLibrary() {
     const address = $w('#libraryAddress').value;
     const type = $w('#libraryType').value;
     
-    // Validation
+    // Basic validation
     if (!name || !address || !type) {
         wixWindow.openLightbox("ErrorLightbox", {
             message: "Please fill all required fields"
@@ -101,7 +96,7 @@ async function createLibrary() {
             description,
             address,
             type,
-            gallery: uploadedGallery.map(img => ({
+            gallery: uploadedGallery.map(img => ({ 
                 image: img.image,
                 title: "",
                 description: ""
