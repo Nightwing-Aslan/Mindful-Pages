@@ -24,6 +24,11 @@ $w.onReady(() => {
         value: type
     }));
     
+    // Setup address input
+    $w('#libraryAddressInput').onInput(() => {
+        $w('#libraryAddress').value = $w('#libraryAddressInput').value;
+    });
+    
     // Setup form submission
     $w('#createLibrary').onClick(createLibrary);
 });
@@ -32,11 +37,11 @@ async function createLibrary() {
     // Get form values
     const name = $w('#libraryName').value;
     const description = $w('#libraryDescription').value;
-    const location = $w('#libraryLocation').value; // Text input for location
+    const address = $w('#libraryAddress').value; // From hidden field
     const type = $w('#libraryType').value;
     
     // Validation
-    if (!name || !location || !type) {
+    if (!name || !address || !type) {
         wixWindow.openLightbox("ErrorLightbox", {
             message: "Please fill all required fields"
         });
@@ -45,10 +50,10 @@ async function createLibrary() {
     
     try {
         // Create library
-        await wixData.insert("libraries", {
+        const newLibrary = await wixData.insert("libraries", {
             name,
             description,
-            location,
+            address,
             type,
             ownerUserId: currentUser.id,
             createdAt: new Date(),
@@ -59,7 +64,7 @@ async function createLibrary() {
         // Success
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Library created successfully!",
-            redirectUrl: "/libraries"
+            redirectUrl: `/library-details?libraryId=${newLibrary._id}`
         });
         
     } catch (error) {
