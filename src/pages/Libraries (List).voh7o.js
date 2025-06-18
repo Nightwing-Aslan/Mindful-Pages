@@ -14,7 +14,7 @@ $w.onReady(async () => {
     $w('#librariesRepeater').hide();
     $w('#noResults').hide();
     
-    // Setup search with unique ID
+    // Setup search with unique IDs
     $w('#librarySearchInput').onInput(() => loadLibraries());
     $w('#librarySearchButton').onClick(() => loadLibraries()); // Unique button ID
     
@@ -44,7 +44,7 @@ async function loadLibraries() {
                 library.name.toLowerCase().includes(searchTerm) ||
                 library.description.toLowerCase().includes(searchTerm) ||
                 library.type.toLowerCase().includes(searchTerm) ||
-                library.location.toLowerCase().includes(searchTerm) ||
+                library.address.toLowerCase().includes(searchTerm) ||
                 await hasMatchingBooks(library._id, searchTerm)
             );
         }
@@ -83,10 +83,10 @@ async function hasMatchingBooks(libraryId, searchTerm) {
 }
 
 $w('#librariesRepeater').onItemReady(($item, library) => {
-    // Set library details with summary
+    // Set library details
     $item('#libraryName').text = library.name;
     $item('#libraryType').text = library.type;
-    $item('#libraryLocation').text = library.location;
+    $item('#libraryAddress').text = library.address;
     $item('#librarySummary').text = library.description || "No description available";
     
     // Display average rating
