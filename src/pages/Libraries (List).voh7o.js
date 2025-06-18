@@ -99,7 +99,7 @@ $w('#librariesRepeater').onItemReady(($item, library) => {
     $item('#libraryCity').text = library.city;
     $item('#distance').text = `${library.distanceFromUser} miles`;
     $item('#libraryImage').src = library.libraryPicture || "https://example.com/default-library.jpg";
-    
+    $item('#libraryDescription').text = library.description || "No description available";
     // Create star rating
     const rating = library.star || 0;
     $item('#ratingStars').text = "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating));
