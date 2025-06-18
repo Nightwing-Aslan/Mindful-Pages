@@ -1,6 +1,7 @@
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
+import { currentUser } from 'wix-users';
 
 let currentLibraryId = null;
 let currentLibrary = null;
@@ -27,23 +28,15 @@ $w.onReady(async () => {
         // Set library info
         $w('#libraryTitle').text = currentLibrary.name;
         $w('#libraryDescription').text = currentLibrary.description;
-        
-        // Set up slide deck gallery
-        if (currentLibrary.gallery && currentLibrary.gallery.length > 0) {
-            $w('#libraryGallery').items = currentLibrary.gallery.map(item => ({
-                image: item.image,
-                title: item.title,
-                description: item.description
-            }));
-        } else {
-            $w('#noGalleryMessage').show();
-            $w('#libraryGallery').hide();
-        }
+        $w('#libraryAddress').text = currentLibrary.address;
+        $w('#libraryType').text = currentLibrary.type;
         
         // Display average rating
-        $w('#submitRating').onClick(submitRating);
         $w('#averageRating').text = currentLibrary.averageRating.toFixed(1);
         $w('#ratingCount').text = `${currentLibrary.ratingCount} ratings`;
+        
+        // Setup slide deck gallery
+        setupGallery();
         
         // Show add book button if owner
         if (currentLibrary.ownerUserId === currentUser.id) {
@@ -60,6 +53,9 @@ $w.onReady(async () => {
         // Load books
         await loadBooks();
         
+        // Setup rating system
+        setupRatingSystem();
+        
     } catch (error) {
         wixWindow.openLightbox("ErrorLightbox", {
             message: "Error loading library: " + error.message
@@ -68,6 +64,24 @@ $w.onReady(async () => {
         $w('#loadingIndicator').hide();
     }
 });
+
+function setupGallery() {
+    // Get gallery items from library data
+    const galleryItems = currentLibrary.gallery || [];
+    
+    if (galleryItems.length > 0) {
+        // Set slide deck gallery items
+        $w('#libraryGallery').items = galleryItems.map(item => ({
+            image: item.image,
+            title: item.title,
+            description: item.description
+        }));
+        $w('#noGalleryMessage').hide();
+    } else {
+        $w('#libraryGallery').hide();
+        $w('#noGalleryMessage').show();
+    }
+}
 
 async function loadBooks() {
     try {
@@ -94,6 +108,70 @@ async function loadBooks() {
     }
 }
 
+function setupRatingSystem() {
+    // Initialize stars
+    for (let i = 1; i <= 5; i++) {
+        $w(`#star${i}`).onClick(() => submitRating(i));
+    }
+    
+    // Display current rating
+    updateRatingDisplay();
+}
+
+function updateRatingDisplay() {
+    const rating = currentLibrary.averageRating || 0;
+    const fullStars = Math.floor(rating);
+    
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            $w(`#star${i}`).text = "★";
+            $w(`#star${i}`).style.color = "#FFD700"; // Gold
+        } else {
+            $w(`#star${i}`).text = "☆";
+            $w(`#star${i}`).style.color = "#CCCCCC"; // Gray
+        }
+    }
+}
+
+async function submitRating(ratingValue) {
+    try {
+        // Save rating
+        await wixData.insert("library_ratings", {
+            libraryId: currentLibraryId,
+            userId: currentUser.id,
+            rating: ratingValue,
+            timestamp: new Date()
+        });
+        
+        // Recalculate average
+        const allRatings = await wixData.query("library_ratings")
+            .eq("libraryId", currentLibraryId)
+            .find()
+            .then(({ items }) => items);
+        
+        const totalRating = allRatings.reduce((sum, item) => sum + item.rating, 0);
+        const averageRating = totalRating / allRatings.length;
+        const ratingCount = allRatings.length;
+        
+        // Update library
+        await wixData.update("libraries", {
+            _id: currentLibraryId,
+            averageRating,
+            ratingCount
+        });
+        
+        // Update UI
+        currentLibrary.averageRating = averageRating;
+        currentLibrary.ratingCount = ratingCount;
+        $w('#averageRating').text = averageRating.toFixed(1);
+        $w('#ratingCount').text = `${ratingCount} ratings`;
+        updateRatingDisplay();
+        
+    } catch (error) {
+        console.error("Error submitting rating:", error);
+    }
+}
+
 $w('#booksRepeater').onItemReady(($item, book) => {
     // Set book details
     $item('#bookTitle').text = book.title;
@@ -114,53 +192,3 @@ $w('#booksRepeater').onItemReady(($item, book) => {
         $item('#editBookButton').hide();
     }
 });
-async function submitRating() {
-    const ratingValue = parseFloat($w('#ratingInput').value);
-    
-    if (isNaN(ratingValue) || ratingValue < 0 || ratingValue > 5) {
-        $w('#ratingError').text = "Please enter a valid rating (0-5)";
-        $w('#ratingError').show();
-        return;
-    }
-    
-    try {
-        // Save rating
-        await wixData.insert("library_ratings", {
-            libraryId: currentLibraryId,
-            userId: currentUser.id,
-            rating: ratingValue,
-            timestamp: new Date()
-        });
-        
-        // Recalculate average
-        const ratings = await wixData.query("library_ratings")
-            .eq("libraryId", currentLibraryId)
-            .find()
-            .then(({ items }) => items);
-        
-        const total = ratings.reduce((sum, r) => sum + r.rating, 0);
-        const average = total / ratings.length;
-        const ratingCount = ratings.length;
-        
-        // Update library
-        await wixData.update("libraries", {
-            _id: currentLibraryId,
-            averageRating: average,
-            ratingCount
-        });
-        
-        // Update UI
-        $w('#averageRating').text = average.toFixed(1);
-        $w('#ratingCount').text = `${ratingCount} ratings`;
-        $w('#ratingInput').value = "";
-        $w('#ratingError').hide();
-        
-        wixWindow.openLightbox("SuccessLightbox", {
-            message: "Rating submitted successfully!"
-        });
-        
-    } catch (error) {
-        $w('#ratingError').text = "Error submitting rating: " + error.message;
-        $w('#ratingError').show();
-    }
-}
