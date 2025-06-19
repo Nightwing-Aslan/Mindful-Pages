@@ -32,6 +32,10 @@ $w.onReady(() => {
         $item('#galleryImage').src = itemData.image;
         $item('#removeImage').onClick(() => removeImage(itemData.id));
     });
+
+    $w('#privacyToggle').onChange(() => {
+        $w('#privacyStatus').text = $w('#privacyToggle').checked ? "Public" : "Private";
+    });
 });
 
 async function handleGalleryUpload(event) {
