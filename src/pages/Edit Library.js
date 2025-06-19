@@ -37,8 +37,8 @@ $w.onReady(async () => {
         $w('#libraryDescription').value = currentLibrary.description;
         $w('#libraryAddress').value = currentLibrary.address;
         
-        // Set privacy toggle
-        $w('#privacyToggle').checked = currentLibrary.privacy === "public";
+        // Set privacy switch
+        $w('#privacySwitch').checked = currentLibrary.privacy === "public";
         
         // Set type dropdown
         $w('#libraryType').value = currentLibrary.type;
@@ -68,7 +68,7 @@ async function updateLibrary() {
     const description = $w('#libraryDescription').value;
     const address = $w('#libraryAddress').value;
     const type = $w('#libraryType').value;
-    const privacy = $w('#privacyToggle').checked ? "public" : "private";
+    const privacy = $w('#privacySwitch').checked ? "public" : "private";
     
     // Validation
     if (!name || !address || !type) {
