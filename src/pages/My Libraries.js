@@ -52,7 +52,6 @@ $w('#librariesRepeater').onItemReady(($item, library) => {
     // Set privacy status
     const isPublic = library.privacy === "public";
     $item('#privacyStatus').text = isPublic ? "Public" : "Private";
-    $item('#privacyStatus').style.color = isPublic ? "#4CAF50" : "#F44336";
     
     // Set book count
     $item('#bookCount').text = `${library.bookCount || 0} books`;
