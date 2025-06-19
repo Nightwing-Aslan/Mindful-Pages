@@ -80,6 +80,7 @@ async function createLibrary() {
     const description = $w('#libraryDescription').value;
     const address = $w('#libraryAddress').value;
     const type = $w('#libraryType').value;
+    const privacy = $w('#privacyToggle').checked ? "public" : "private";
     
     // Basic validation
     if (!name || !address || !type) {
@@ -90,13 +91,13 @@ async function createLibrary() {
     }
     
     try {
-        // Create library with gallery (default public)
+        // Create library with gallery and privacy
         const newLibrary = await wixData.insert("libraries", {
             name,
             description,
             address,
             type,
-            privacy: "public", // Default public
+            privacy,
             gallery: uploadedGallery.map(img => ({ 
                 image: img.image,
                 title: "",
@@ -111,7 +112,7 @@ async function createLibrary() {
         // Success
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Library created successfully!",
-            redirectUrl: `/my-libraries`
+            redirectUrl: "/dashboard"
         });
         
     } catch (error) {
