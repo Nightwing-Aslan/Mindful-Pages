@@ -95,10 +95,11 @@ $w('#booksRepeater').onItemReady(($item, book) => {
     
     // Delete button handler
     $item('#deleteBookButton').onClick(async () => {
-        if (confirm("Are you sure you want to delete this book?")) {
+        const confirm = await wixWindow.openLightbox("ConfirmDeleteLightbox");
+        if (confirm) {
             try {
                 await wixData.remove("books", book._id);
-                $item('#bookContainer').hide(); // Hide instead of removing for animation
+                $item.remove();
                 wixWindow.openLightbox("SuccessLightbox", {
                     message: "Book deleted successfully!"
                 });
