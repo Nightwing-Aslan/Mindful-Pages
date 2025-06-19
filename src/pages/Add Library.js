@@ -90,12 +90,13 @@ async function createLibrary() {
     }
     
     try {
-        // Create library with gallery
+        // Create library with gallery (default public)
         const newLibrary = await wixData.insert("libraries", {
             name,
             description,
             address,
             type,
+            privacy: "public", // Default public
             gallery: uploadedGallery.map(img => ({ 
                 image: img.image,
                 title: "",
@@ -110,7 +111,7 @@ async function createLibrary() {
         // Success
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Library created successfully!",
-            redirectUrl: `/library-details?libraryId=${newLibrary._id}`
+            redirectUrl: `/my-libraries`
         });
         
     } catch (error) {
