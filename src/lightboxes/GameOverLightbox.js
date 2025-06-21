@@ -1,13 +1,14 @@
+// ======================= GAME OVER LIGHTBOX =======================
 import wixWindow from 'wix-window';
 import wixData from 'wix-data';
 import { currentUser } from 'wix-users';
 
 $w.onReady(async () => {
-    // Get riddles data
+    // Get riddles data from context
     const context = wixWindow.lightbox.getContext();
     const riddles = context.riddles;
     
-    // Display riddles
+    // Display riddles with answers
     $w('#riddlesRepeater').data = riddles;
     
     // Load and display max streak
@@ -16,7 +17,8 @@ $w.onReady(async () => {
         .find()
         .then(({ items }) => items[0]);
     
-    $w('#maxStreakText').text = `Max Streak: ${userStats?.maxStreak || 0}`;
+    const maxStreak = userStats?.maxStreak || 0;
+    $w('#maxStreakText').text = `Max Streak: ${maxStreak}`;
     
     // Setup close button
     $w('#closeButton').onClick(() => wixWindow.closeLightbox());
