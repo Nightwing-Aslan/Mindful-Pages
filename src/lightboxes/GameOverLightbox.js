@@ -1,24 +1,29 @@
 import wixWindow from 'wix-window';
+import wixData from 'wix-data';
+import { currentUser } from 'wix-users';
 
-$w.onReady(() => {
+$w.onReady(async () => {
+    // Get riddles data
     const context = wixWindow.lightbox.getContext();
     const riddles = context.riddles;
     
-    $w('#repeater').data = riddles;
+    // Display riddles
+    $w('#riddlesRepeater').data = riddles;
     
-    // Show max streak
-    wixData.query("UserStats")
+    // Load and display max streak
+    const userStats = await wixData.query("UserStats")
         .eq("userId", currentUser.id)
         .find()
-        .then(({ items }) => {
-            if (items.length > 0) {
-                $w('#maxStreak').text = items[0].maxStreak.toString();
-            }
-        });
+        .then(({ items }) => items[0]);
+    
+    $w('#maxStreakText').text = `Max Streak: ${userStats?.maxStreak || 0}`;
+    
+    // Setup close button
+    $w('#closeButton').onClick(() => wixWindow.closeLightbox());
 });
 
-$w('#repeater').onItemReady(($item, riddle, index) => {
-    $item('#question').text = `Riddle ${index + 1}: ${riddle.question}`;
-    $item('#answer').text = `Answer: ${riddle.answer}`;
-    $item('#explanation').text = `Explanation: ${riddle.explanation}`;
+$w('#riddlesRepeater').onItemReady(($item, riddle, index) => {
+    $item('#questionText').text = `Riddle ${index + 1}: ${riddle.question}`;
+    $item('#answerText').text = `Answer: ${riddle.answer}`;
+    $item('#explanationText').text = `Explanation: ${riddle.explanation}`;
 });
