@@ -1,21 +1,51 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
-
+// ======================= RIDDLES ENTRY PAGE =======================
 import { currentUser } from 'wix-users';
 import wixData from 'wix-data';
+import wixWindow from 'wix-window';
 
 $w.onReady(async function () {
+    // Force login if not already logged in
     if (!currentUser.loggedIn) {
         await currentUser.promptLogin();
     }
     
-    // Load user's streak
+    // Get today's date in UK format
+    const today = getUKDateString();
+    
+    // Check if user has already completed today's riddles
+    const todayStats = await wixData.query("DailyStats")
+        .eq("userId", currentUser.id)
+        .eq("date", today)
+        .find()
+        .then(({ items }) => items[0]);
+    
+    // Disable play button if already completed
+    if (todayStats && todayStats.riddlesSolved.length === 3) {
+        $w('#playButton').disable();
+        $w('#playButton').label = "Already Completed Today";
+    }
+    
+    // Load user's max streak
+    const userStats = await wixData.query("UserStats")
+        .eq("userId", currentUser.id)
+        .find()
+        .then(({ items }) => items[0]);
+    
+    // Display max streak
+    $w('#maxStreak').text = userStats?.maxStreak.toString() || "0";
+    
+    // Load current streak
     const streak = await getCurrentStreak();
     $w('#streakCounter').text = streak.toString();
     
-    // Add event listener for rules
+    // Add event listener for rules button
     $w('#rulesButton').onClick(() => {
         wixWindow.openLightbox("RulesLightbox");
+    });
+    
+    // Play button handler
+    $w('#playButton').onClick(() => {
+        wixLocation.to("/riddles-game");
     });
 });
 
@@ -46,6 +76,16 @@ function formatUKDate(date) {
     const isDST = date.getMonth() > 2 && date.getMonth() < 10;
     const ukOffset = isDST ? 60 : 0;
     return new Date(date.getTime() + (ukOffset * 60 * 1000))
+        .toISOString()
+        .split('T')[0];
+}
+
+function getUKDateString() {
+    // UK time (UTC+0/UTC+1 for DST)
+    const now = new Date();
+    const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
+    const ukOffset = isDST ? 60 : 0; // Minutes
+    return new Date(now.getTime() + (ukOffset * 60 * 1000))
         .toISOString()
         .split('T')[0];
 }
