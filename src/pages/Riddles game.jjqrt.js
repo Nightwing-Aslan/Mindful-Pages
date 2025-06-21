@@ -1,4 +1,4 @@
-// ======================= RIDDLES GAME =======================
+// ======================= ENHANCED RIDDLES GAME =======================
 import { data } from 'wix-data';
 import { currentUser } from 'wix-users';
 import wixWindow from 'wix-window';
@@ -17,7 +17,7 @@ $w.onReady(async () => {
 
 // ------------------------ Core Functions ------------------------
 async function initializeUserSession() {
-    // Force login
+    // Force login if not already logged in
     if (!currentUser.loggedIn) {
         await currentUser.promptLogin();
     }
@@ -26,14 +26,14 @@ async function initializeUserSession() {
 async function loadDailyGameState() {
     const today = getUKDateString();
     
-    // Get/create daily stats
+    // Get or create daily stats for current user
     currentStats = await data.query("DailyStats")
         .eq("userId", currentUser.id)
         .eq("date", today)
         .find()
         .then(({ items }) => items[0] || createNewDailyStats(today));
 
-    // Load today's riddles
+    // Load today's active riddles
     currentRiddles = await data.query("Riddles")
         .eq("activeDate", today)
         .find()
@@ -51,7 +51,7 @@ function setupUI() {
 
 // ------------------------ Game Logic ------------------------
 async function handleAnswerSubmission() {
-    // Normalize answer: trim and remove spaces
+    // Normalize answer: trim, remove spaces, and convert to lowercase
     const userAnswer = $w('#answerInput').value
         .trim()
         .toLowerCase()
@@ -68,7 +68,7 @@ async function handleAnswerSubmission() {
         timestamp: new Date()
     });
 
-    // Normalize correct answers
+    // Normalize correct answers for comparison
     const normalizedAnswers = currentRiddle.correctAnswers.map(ans => 
         ans.trim().toLowerCase().replace(/\s+/g, '')
     );
@@ -93,8 +93,21 @@ async function handleCorrectAnswer(riddleId) {
 
     // Check for daily completion
     if (currentStats.riddlesSolved.length === 3) {
-        await updateStreak(currentStats.currentStreak + 1);
-        wixWindow.openLightbox("VictoryLightbox");
+        const newStreak = currentStats.currentStreak + 1;
+        await updateStreak(newStreak);
+        await updateMaxStreak(newStreak);
+        
+        // Show victory lightbox with answers and explanations
+        const riddlesData = currentRiddles.map(r => ({
+            question: r.riddleText,
+            answer: r.correctAnswers.join(", "),
+            explanation: r.explanation || "No explanation available"
+        }));
+        
+        wixWindow.openLightbox("VictoryLightbox", { 
+            riddles: riddlesData,
+            currentStreak: newStreak
+        });
     }
 }
 
@@ -110,7 +123,17 @@ async function handleWrongAnswer() {
     // Check for game over
     if (currentStats.livesRemaining <= 0) {
         await updateStreak(0);
-        wixWindow.openLightbox("GameOverLightbox");
+        
+        // Show game over lightbox with answers and explanations
+        const riddlesData = currentRiddles.map(r => ({
+            question: r.riddleText,
+            answer: r.correctAnswers.join(", "),
+            explanation: r.explanation || "No explanation available"
+        }));
+        
+        wixWindow.openLightbox("GameOverLightbox", { 
+            riddles: riddlesData
+        });
     }
 }
 
@@ -121,7 +144,7 @@ function updateDisplay() {
     // Update challenges counter
     $w('#challengeCounter').text = `${currentIndex}/3`;
     
-    // Update riddle text and input state
+    // Update riddle text and input state based on game state
     if (currentIndex < 3 && currentStats.livesRemaining > 0) {
         $w('#riddleText').text = currentRiddles[currentIndex].riddleText;
         $w('#answerInput').placeholder = "Enter your answer...";
@@ -139,10 +162,10 @@ function updateDisplay() {
         $w('#submitButton').disable();
     }
 
-    // Update counters
+    // Update lives and streak counters
     updateLivesAndStreak();
     
-    // Clear input
+    // Clear input field
     $w('#answerInput').value = "";
 }
 
@@ -179,6 +202,27 @@ async function updateStreak(newStreak) {
     await data.update("DailyStats", currentStats);
 }
 
+async function updateMaxStreak(newStreak) {
+    try {
+        // Get current max streak
+        const userStats = await data.query("UserStats")
+            .eq("userId", currentUser.id)
+            .find()
+            .then(({ items }) => items[0]);
+        
+        // Update if new streak is higher than current max
+        if (!userStats || newStreak > userStats.maxStreak) {
+            await data.save("UserStats", {
+                _id: userStats?._id,
+                userId: currentUser.id,
+                maxStreak: newStreak
+            });
+        }
+    } catch (error) {
+        console.error("Error updating max streak:", error);
+    }
+}
+
 function getCurrentRiddle() {
     return currentRiddles[currentStats.riddlesSolved.length];
 }
@@ -200,4 +244,12 @@ function getUKDateString() {
     return new Date(now.getTime() + (ukOffset * 60 * 1000))
         .toISOString()
         .split('T')[0];
+}
+
+function getUKDate() {
+    // UK time (UTC+0/UTC+1 for DST)
+    const now = new Date();
+    const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
+    const ukOffset = isDST ? 60 : 0; // Minutes
+    return new Date(now.getTime() + (ukOffset * 60 * 1000));
 }
