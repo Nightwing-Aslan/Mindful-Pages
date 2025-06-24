@@ -51,20 +51,29 @@ async function handleAnswerSubmission() {
         .trim()
         .toLowerCase()
         .replace(/\s+/g, '');
-    
+
     const currentRiddle = getCurrentRiddle();
     if (!currentRiddle) return;
+
+    print("Got current riddle");
 
     // Normalize correct answers
     const normalizedAnswers = currentRiddle.correctAnswers.map(ans => 
         ans.trim().toLowerCase().replace(/\s+/g, '')
     );
 
+    print("Normalized");
+    print(normalizedAnswers);
+
     if (normalizedAnswers.includes(userAnswer)) {
         await handleCorrectAnswer(currentRiddle._id);
+        print("Correct Answer");
     } else {
         await handleWrongAnswer();
+        print("Wrong Answer");
     }
+
+    print("Update Display");
     
     updateDisplay();
 }
