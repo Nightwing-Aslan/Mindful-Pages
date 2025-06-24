@@ -1,0 +1,46 @@
+import { cron } from 'wix-cron';
+import { data } from 'wix-data';
+
+// Initialize daily reset cron job
+export function initDailyReset() {
+  // Schedule daily at 23:00 UTC (00:00 UK time)
+  cron.schedule('0 23 * * *', async () => {
+    try {
+      // Get today's date in UK format
+      const today = getUKDate();
+      today.setHours(0, 0, 0, 0);
+      
+      // 1. Activate today's scheduled riddles
+      await activateScheduledRiddles(today);
+      
+      console.log("Daily reset completed successfully");
+    } catch (error) {
+      console.error("Daily reset failed:", error);
+    }
+  });
+}
+
+async function activateScheduledRiddles(date) {
+  // Clear previous active status
+  await data.update("Riddles", { isActive: false }, { "isActive": true });
+  
+  // Activate scheduled riddles for this date
+  return data.update("Riddles", 
+    { isActive: true },
+    { "scheduledDate": date.toISOString() }
+  );
+}
+
+export function getTodaysRiddles() {
+  return data.query("Riddles")
+    .eq("isActive", true)
+    .find();
+}
+
+// Helper function for UK time
+function getUKDate() {
+  const now = new Date();
+  const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
+  const ukOffset = isDST ? 60 : 0; // Minutes
+  return new Date(now.getTime() + (ukOffset * 60 * 1000));
+}

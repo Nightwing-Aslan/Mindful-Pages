@@ -1,0 +1,114 @@
+/* public/global-styles.css */
+
+/* Trading Page Styles */
+.genre-tag {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 4px;
+    background-color: #f0f0f0;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.genre-tag.selected {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+#personalSummaryContainer {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border-left: 4px solid #4CAF50;
+}
+
+#personalSummaryLabel {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+#personalSummaryText {
+    line-height: 1.5;
+    color: #555;
+}
+
+.list-item {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.3s;
+}
+
+.list-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Riddles Page Styles */
+#streakDisplay {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #4CAF50;
+    margin-bottom: 15px;
+}
+
+#challengesCounter {
+    background-color: #f0f0f0;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.rules-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.rules-content.expanded {
+    max-height: 500px;
+}
+
+@media (max-width: 768px) {
+    .list-item {
+        padding: 10px;
+    }
+    
+    .genre-tag {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .filter-section {
+        padding: 10px;
+    }
+}
+
+.list-item {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.list-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+.genre-tag {
+    display: inline-block;
+    background: #e0e0e0;
+    border-radius: 16px;
+    padding: 4px 12px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.genre-tag-more {
+    background: #f0f0f0;
+    font-style: italic;
+    color: #666;
+}
