@@ -38,6 +38,8 @@ async function loadDailyGameState() {
         .eq("activeDate", today)
         .find()
         .then(({ items }) => items);
+
+    console.log("✅ Loaded Riddles:", currentRiddles);
 }
 
 function setupUI() {
@@ -206,7 +208,18 @@ function updateDisplay() {
     
     // Update UI based on game state
     if (currentIndex < 3 && currentStats.livesRemaining > 0) {
-        $w('#riddleText').text = currentRiddles[currentIndex].riddleText;
+        if (currentRiddles[currentIndex]) {
+            $w('#riddleText').text = currentRiddles[currentIndex].riddleText;
+        } else {
+            console.error("currentRiddles[currentIndex] is undefined", {
+                currentIndex,
+                currentRiddlesLength: currentRiddles.length,
+                currentRiddles
+            });
+            $w('#riddleText').text = "Riddle unavailable. Please try again later.";
+            $w('#answerInput').disable();
+            $w('#submitButton').disable();
+        }        
         $w('#answerInput').placeholder = "Enter your answer...";
         $w('#answerInput').enable();
         $w('#submitButton').enable();
