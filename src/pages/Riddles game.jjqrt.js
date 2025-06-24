@@ -10,6 +10,7 @@ let currentStats = null;
 
 $w.onReady(async () => {
     // Initialize game
+    
     await initializeUserSession();
     await loadDailyGameState();
     setupUI();
@@ -55,25 +56,25 @@ async function handleAnswerSubmission() {
     const currentRiddle = getCurrentRiddle();
     if (!currentRiddle) return;
 
-    print("Got current riddle");
+    console.debug("Got current riddle");
 
     // Normalize correct answers
     const normalizedAnswers = currentRiddle.correctAnswers.map(ans => 
         ans.trim().toLowerCase().replace(/\s+/g, '')
     );
 
-    print("Normalized");
-    print(normalizedAnswers);
+    console.debug("Normalized");
+    console.debug(normalizedAnswers);
 
     if (normalizedAnswers.includes(userAnswer)) {
         await handleCorrectAnswer(currentRiddle._id);
-        print("Correct Answer");
+        console.debug("Correct Answer");
     } else {
         await handleWrongAnswer();
-        print("Wrong Answer");
+        console.debug("Wrong Answer");
     }
 
-    print("Update Display");
+    console.debug("Update Display");
     
     updateDisplay();
 }
