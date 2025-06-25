@@ -3,6 +3,7 @@ import { currentUser } from 'wix-users';
 import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location'; 
+import { getUKDateAsString } from '../public/DateUtils';
 
 $w.onReady(async function () {
     const today = getUKDateAsString();

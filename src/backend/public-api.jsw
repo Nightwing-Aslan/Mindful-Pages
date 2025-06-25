@@ -1,5 +1,6 @@
 import { cron } from 'wix-cron';
 import { data } from 'wix-data';
+import { getUKDate } from '../public/DateUtils';
 
 // Initialize daily reset cron job
 export function initDailyReset() {

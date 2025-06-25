@@ -3,6 +3,7 @@ import { currentUser } from 'wix-users';
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';
+import { getUKDateAsString } from '../public/DateUtils';
 
 // Global variables
 let currentRiddles = [];
