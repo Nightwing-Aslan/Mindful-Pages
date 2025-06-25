@@ -10,9 +10,7 @@ $w.onReady(async function () {
         wixLocation.to("/login");
         return;
     }
-    
-    // Get today's date in UK format
-    const today = getUKDateString();
+        const today = getUKDateString();
     
     // Check if user has already played today
     const todayStats = await wixData.query("DailyStats")
@@ -21,8 +19,7 @@ $w.onReady(async function () {
         .find()
         .then(({ items }) => items[0]);
     
-    // Disable play button if at least 1 riddle solved
-    if (todayStats && todayStats.riddlesSolved.length >= 1) {
+    if (todayStats && todayStats.riddlesSolved.length >= 3) {
         $w('#playButton').disable();
         $w('#playButton').label = "Completed Today";
     }
