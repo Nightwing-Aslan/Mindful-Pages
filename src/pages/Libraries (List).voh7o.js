@@ -3,12 +3,6 @@ import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 
 $w.onReady(async () => {
-    // Check if user is logged in
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Show loading indicator
     $w('#loadingIndicator').show();
     $w('#librariesRepeater').hide();

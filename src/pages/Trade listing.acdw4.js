@@ -7,11 +7,6 @@ import wixData from 'wix-data';
 let uploadedCoverUrl = "";
 
 $w.onReady(async () => {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Set up genre options using SelectionTags (no custom container needed)
     const genres = [
         "Classics", "Memoirs", "Historical Fiction", "Novels", "Mysteries", 

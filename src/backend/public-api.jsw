@@ -36,11 +36,3 @@ export function getTodaysRiddles() {
     .eq("isActive", true)
     .find();
 }
-
-// Helper function for UK time
-function getUKDate() {
-  const now = new Date();
-  const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
-  const ukOffset = isDST ? 60 : 0; // Minutes
-  return new Date(now.getTime() + (ukOffset * 60 * 1000));
-}

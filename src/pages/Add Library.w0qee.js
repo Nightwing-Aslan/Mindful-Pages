@@ -7,11 +7,6 @@ import wixWindow from 'wix-window';
 let uploadedGallery = [];
 
 $w.onReady(() => {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Setup library type dropdown
     $w('#libraryType').options = [
         "Bookstore", 

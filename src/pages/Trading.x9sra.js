@@ -9,11 +9,6 @@ let maxDistance = 50;
 let userAddress = "";
 
 $w.onReady(async () => {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Initialize UI
     initializeFilters();
     setupEventHandlers();

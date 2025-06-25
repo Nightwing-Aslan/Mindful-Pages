@@ -5,12 +5,7 @@ import wixWindow from 'wix-window';
 import wixLocation from 'wix-location'; 
 
 $w.onReady(async function () {
-    // Force login if needed
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-        const today = getUKDateString();
+    const today = getUKDateAsString();
     
     // Check if user has already played today
     const todayStats = await wixData.query("DailyStats")
@@ -44,13 +39,3 @@ $w.onReady(async function () {
         wixLocation.to("/riddles-game");
     });
 });
-
-function getUKDateString() {
-    // UK time (UTC+0/UTC+1 for DST)
-    const now = new Date();
-    const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
-    const ukOffset = isDST ? 60 : 0; // Minutes
-    return new Date(now.getTime() + (ukOffset * 60 * 1000))
-        .toISOString()
-        .split('T')[0];
-}

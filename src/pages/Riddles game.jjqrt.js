@@ -19,14 +19,11 @@ $w.onReady(async () => {
 
 // ------------------------ Core Functions ------------------------
 async function initializeUserSession() {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;    
-    }
+
 }
 
 async function loadDailyGameState() {
-    const today = getUKDateString();
+    const today = getUKDateAsString();
 
     currentStats = await wixData.query("DailyStats")
         .eq("userId", currentUser.id)
@@ -281,14 +278,4 @@ function showHint() {
     wixWindow.openLightbox("HintLightbox", {
         hint: currentRiddle.hint
     });
-}
-
-function getUKDateString() {
-    // UK time (UTC+0/UTC+1 for DST)
-    const now = new Date();
-    const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
-    const ukOffset = isDST ? 60 : 0; // Minutes
-    return new Date(now.getTime() + (ukOffset * 60 * 1000))
-        .toISOString()
-        .split('T')[0];
 }

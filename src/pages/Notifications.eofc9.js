@@ -6,11 +6,6 @@ import wixLocation from 'wix-location';
 // ... existing imports ...
 
 $w.onReady(async () => {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Initialize UI state
     $w('#offersContainer').hide();
     $w('#emptyState').hide();

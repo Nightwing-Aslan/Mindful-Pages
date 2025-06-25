@@ -1,10 +1,13 @@
 // API Reference: https://www.wix.com/velo/reference/api-overview/introduction
 // “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
+import { currentUser } from 'wix-users';
+import wixLocation from 'wix-location'; 
 
 $w.onReady(function () {
-    // Write your JavaScript here
 
-    // To select an element by ID use: $w('#elementID')
-
-    // Click 'Preview' to run your code
+    // Use as a guard for all pages
+    if (!currentUser.loggedIn) {
+        wixLocation.to("/login");
+        return;
+    }
 });

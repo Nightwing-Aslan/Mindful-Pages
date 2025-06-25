@@ -4,11 +4,6 @@ import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
 
 $w.onReady(async () => {
-    if (!currentUser.loggedIn) {
-        wixLocation.to("/login");
-        return;
-    }
-    
     // Show loading indicator
     $w('#loadingIndicator').show();
     $w('#librariesContainer').hide();
