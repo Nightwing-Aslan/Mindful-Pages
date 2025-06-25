@@ -27,7 +27,7 @@ async function initializeUserSession() {
 
 async function loadDailyGameState() {
     const today = getUKDateString();
-    
+
     currentStats = await wixData.query("DailyStats")
         .eq("userId", currentUser.id)
         .eq("date", today)
@@ -35,12 +35,13 @@ async function loadDailyGameState() {
         .then(({ items }) => items[0] || createNewDailyStats(today));
 
     currentRiddles = await wixData.query("Riddles")
-        .eq("activeDate", today)
+        .eq("date", today)
         .find()
         .then(({ items }) => items);
 
     console.log("✅ Loaded Riddles:", currentRiddles);
 }
+
 
 function setupUI() {
     $w('#submitButton').onClick(handleAnswerSubmission);
@@ -60,8 +61,10 @@ async function handleAnswerSubmission() {
 
     console.debug("Got current riddle");
 
-    // Normalize correct answers
-    const normalizedAnswers = currentRiddle.correctAnswers.map(ans => 
+    const answers = Array.isArray(currentRiddle.correctAnswers) ? currentRiddle.correctAnswers : [];
+    console.log('currentRiddle.correctAnswers:', currentRiddle.correctAnswers);
+
+    const normalizedAnswers = answers.map(ans => 
         ans.trim().toLowerCase().replace(/\s+/g, '')
     );
 
@@ -202,42 +205,46 @@ async function handleWrongAnswer() {
 // ------------------------ Helper Functions ------------------------
 function updateDisplay() {
     const currentIndex = currentStats.riddlesSolved.length;
-    
-    // Update challenges counter
+
+    // Fallback if no riddles loaded
+    if (!currentRiddles || currentRiddles.length === 0) {
+        console.warn("No riddles found for today.");
+        $w('#riddleText').text = "No riddles available today. Please come back tomorrow.";
+        $w('#answerInput').placeholder = "No riddle today.";
+        $w('#answerInput').value = "";
+        $w('#answerInput').disable();
+        $w('#submitButton').disable();
+        $w('#hintButton').disable();
+        $w('#challengeCounter').text = "0/3";
+        return;
+    }
+
+    // Normal gameplay logic
     $w('#challengeCounter').text = `${currentIndex}/3`;
-    
-    // Update UI based on game state
+
     if (currentIndex < 3 && currentStats.livesRemaining > 0) {
-        if (currentRiddles[currentIndex]) {
-            $w('#riddleText').text = currentRiddles[currentIndex].riddleText;
-        } else {
-            console.error("currentRiddles[currentIndex] is undefined", {
-                currentIndex,
-                currentRiddlesLength: currentRiddles.length,
-                currentRiddles
-            });
-            $w('#riddleText').text = "Riddle unavailable. Please try again later.";
-            $w('#answerInput').disable();
-            $w('#submitButton').disable();
-        }        
+        $w('#riddleText').text = currentRiddles[currentIndex].riddleText;
         $w('#answerInput').placeholder = "Enter your answer...";
         $w('#answerInput').enable();
         $w('#submitButton').enable();
+        $w('#hintButton').enable();
     } else if (currentIndex >= 3) {
-        $w('#riddleText').text = "Congratulations! You solved all riddles today!";
+        $w('#riddleText').text = "🎉 Congratulations! You solved all riddles today!";
         $w('#answerInput').placeholder = "Come back tomorrow!";
         $w('#answerInput').disable();
         $w('#submitButton').disable();
+        $w('#hintButton').disable();
     } else if (currentStats.livesRemaining <= 0) {
-        $w('#riddleText').text = "Game Over! You've run out of lives.";
+        $w('#riddleText').text = "💀 Game Over! You've run out of lives.";
         $w('#answerInput').placeholder = "Come back tomorrow!";
         $w('#answerInput').disable();
         $w('#submitButton').disable();
+        $w('#hintButton').disable();
     }
 
     // Update lives and streak counters
     updateLivesAndStreak();
-    
+
     // Clear input field
     $w('#answerInput').value = "";
 }
