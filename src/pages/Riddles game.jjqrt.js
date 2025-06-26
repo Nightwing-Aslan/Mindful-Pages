@@ -3,7 +3,7 @@ import { currentUser } from 'wix-users';
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';
-import { getUKDateAsString } from '../public/DateUtils';
+import { getUKDateAsString } from 'public/DateUtils.js';
 
 // ------------------------ Global State ------------------------
 let currentRiddles = [];
@@ -11,6 +11,8 @@ let currentStats = null;
 
 // ------------------------ On Page Ready ------------------------
 $w.onReady(async () => {
+    console.log("OnReady: Riddle Game");
+    
     await initializeUserSession();
     await loadDailyGameState();
     setupUI();
