@@ -29,7 +29,7 @@ async function ensureUserStatsExists(userId) {
     if (items.length === 0) {
         await wixData.insert("UserStats", {
             userId: userId,
-            user: userId,
+            userRef: currentUser,
             currentStreak: 0,
             maxStreak: 0
         });
@@ -56,7 +56,8 @@ async function createNewDailyStats(date) {
     const userStats = await getUserStats();
 
     const newStats = {
-        user: currentUser.id,
+        title: currentUser.id,
+        userRef: currentUser,
         date,
         livesRemaining: 3,
         riddlesSolved: [],
@@ -202,7 +203,12 @@ function enableUI() {
 }
 
 function updateLivesAndStreak() {
-    $w('#livesCounter').text = "❤️".repeat(currentStats.livesRemaining);
+    const lives = Math.max(0, currentStats.livesRemaining);
+    if(lives > 0)
+        $w('#livesCounter').text = "❤️".repeat(lives);
+    else
+        $w('#livesCounter').text = "Out Of Lives 💔";
+
     $w('#streakCounter').text = currentStats.currentStreak.toString();
 }
 
@@ -214,7 +220,7 @@ function showHint() {
     const currentRiddle = getCurrentRiddle();
     if (!currentRiddle) return;
 
-    wixWindow.openLightbox("HintLightbox", { hint: currentRiddle.hint });
+    wixWindow.openLightbox("Hint", { hint: currentRiddle.hint });
 }
 
 function formatRiddle(riddle) {
