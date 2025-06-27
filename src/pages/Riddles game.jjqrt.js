@@ -114,7 +114,7 @@ async function handleCorrectAnswer(riddleId) {
         await updateUserStreak(true);
         const userStats = await getUserStats();
 
-        await wixWindow.openLightbox("SuccessLightbox", {
+        await wixWindow.openLightbox("Success Lightbox", {
             riddle: formatRiddle(currentRiddles[0]),
             currentStreak: userStats.currentStreak,
             maxStreak: userStats.maxStreak
