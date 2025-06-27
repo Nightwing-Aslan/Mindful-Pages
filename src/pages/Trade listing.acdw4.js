@@ -7,7 +7,12 @@ import wixData from 'wix-data';
 let uploadedCoverUrl = "";
 
 $w.onReady(async () => {
-    // Set up genre options using SelectionTags (no custom container needed)
+    if (!currentUser.loggedIn) {
+        wixLocation.to("/login");
+        return;
+    }
+
+    // Set up genre options
     const genres = [
         "Classics", "Memoirs", "Historical Fiction", "Novels", "Mysteries", 
         "Comedy", "Fantasy", "Science Fiction", "Non-Fiction", "History",
@@ -23,10 +28,47 @@ $w.onReady(async () => {
         value: genre
     }));
     
-    // Set up event handlers
+    $w('#createButton').disable();
     $w('#createButton').onClick(createListing);
     $w('#bookCoverUpload').onChange(handleCoverUpload);
+    
+    // List of required fields to validate
+    const requiredFields = [
+        '#bookTitle', 
+        '#bookAuthor', 
+        '#conditionSelect', 
+        '#lookingFor', 
+        '#locationInput',
+        '#distanceSlider'
+    ];
+    
+    // Add change handlers for all required fields
+    $w(requiredFields.join(",")).onChange(validateForm);
+    $w('#selectionTags1').onChange(validateForm);
+    
+    // Also validate when cover upload completes
+    $w('#bookCoverUpload').onChange(() => {
+        handleCoverUpload(event).then(validateForm);
+    });
+    
+    // Initial validation check
+    validateForm();
 });
+
+function validateForm() {
+    const isFormValid = (
+        $w('#bookTitle').value &&
+        $w('#bookAuthor').value &&
+        $w('#conditionSelect').value &&
+        $w('#lookingFor').value &&
+        $w('#locationInput').value &&
+        $w('#distanceSlider').value &&
+        $w('#selectionTags1').value.length > 0 &&
+        uploadedCoverUrl
+    );
+
+    $w('#createButton').enable(isFormValid);
+}
 
 async function handleCoverUpload(event) {
     try {
@@ -63,9 +105,37 @@ async function createListing() {
     const location = $w('#locationInput').value;
     const maxDistance = parseInt($w('#distanceSlider').value);
     const personalDescription = $w('#personalDescription').value;
-    
-    // Get selected genres from SelectionTags
     const selectedGenres = $w('#selectionTags1').value;
+
+    // Validate required fields
+    const requiredFields = {
+        "Book Title": bookTitle,
+        "Author": bookAuthor,
+        "Condition": bookCondition,
+        "Looking For": lookingFor,
+        "Location": location,
+        "Genres": selectedGenres.length > 0
+    };
+
+    // Check for empty fields
+    const missingFields = Object.entries(requiredFields)
+        .filter(([_, value]) => !value)
+        .map(([field]) => field);
+
+    if (missingFields.length > 0) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: `Please fill in all required fields: ${missingFields.join(", ")}`
+        });
+        return;
+    }
+
+    // Validate cover image
+    if (!uploadedCoverUrl) {
+        wixWindow.openLightbox("ErrorLightbox", {
+            message: "Please upload a book cover image"
+        });
+        return;
+    }
 
     // Create book listing
     try {
