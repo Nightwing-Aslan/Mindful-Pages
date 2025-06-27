@@ -3,30 +3,21 @@ import { currentUser } from 'wix-users';
 import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location'; 
-import { getUKDateAsString } from '../public/DateUtils';
+import { getUKDateAsString } from 'public/DateUtils.js';
 
-$w.onReady(async function () {
-    const today = getUKDateAsString();
+$w.onReady(async () => {
+    console.log("On Ready: Riddle Page");
+
+    const [dailyStats, userStats] = await Promise.all([
+        loadUserDailyStats(),
+        loadUserStats()
+    ]);   
     
-    // Check if user has already played today
-    const todayStats = await wixData.query("DailyStats")
-        .eq("userId", currentUser.id)
-        .eq("date", today)
-        .find()
-        .then(({ items }) => items[0]);
-    
-    if (todayStats && todayStats.riddlesSolved.length >= 3) {
+    if (dailyStats && dailyStats.riddlesSolved.length >= 3) {
         $w('#playButton').disable();
         $w('#playButton').label = "Completed Today";
     }
     
-    // Load user's streak info
-    const userStats = await wixData.query("UserStats")
-        .eq("userId", currentUser.id)
-        .find()
-        .then(({ items }) => items[0]);
-    
-    // Display streaks
     $w('#currentStreak').text = userStats?.currentStreak?.toString() || "0";
     $w('#maxStreak').text = userStats?.maxStreak?.toString() || "0";
     
@@ -40,3 +31,27 @@ $w.onReady(async function () {
         wixLocation.to("/riddles-game");
     });
 });
+
+async function loadUserDailyStats(){
+    const today = getUKDateAsString();
+
+    // Check if user has already played today
+    const todayStats = await wixData.query("UserDailyRiddleStats")
+        .eq("userId", currentUser.id)
+        .eq("date", today)
+        .find()
+        .then(({ items }) => items[0]);
+
+    console.log(currentUser.id);
+    return todayStats;
+}
+
+async function loadUserStats(){
+     // Load user's streak info
+    const userStats = await wixData.query("UserStats")
+        .eq("userId", currentUser.id)
+        .find()
+        .then(({ items }) => items[0]);
+
+    return userStats;
+}
