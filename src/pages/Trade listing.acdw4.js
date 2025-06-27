@@ -28,7 +28,10 @@ $w.onReady(async () => {
         value: genre
     }));
     
+    // Initialize create button as disabled
     $w('#createButton').disable();
+    
+    // Set up event handlers
     $w('#createButton').onClick(createListing);
     $w('#bookCoverUpload').onChange(handleCoverUpload);
     
@@ -55,27 +58,43 @@ $w.onReady(async () => {
     validateForm();
 });
 
+// Real-time form validation function
 function validateForm() {
-    const isFormValid = (
-        $w('#bookTitle').value &&
-        $w('#bookAuthor').value &&
-        $w('#conditionSelect').value &&
-        $w('#lookingFor').value &&
-        $w('#locationInput').value &&
-        $w('#distanceSlider').value &&
-        $w('#selectionTags1').value.length > 0 &&
-        uploadedCoverUrl
-    );
-
-    $w('#createButton').enable(isFormValid);
+    try {
+        const fieldsValid = (
+            $w('#bookTitle').value.trim() !== "" &&
+            $w('#bookAuthor').value.trim() !== "" &&
+            $w('#conditionSelect').value &&
+            $w('#lookingFor').value.trim() !== "" &&
+            $w('#locationInput').value.trim() !== "" &&
+            $w('#distanceSlider').value &&
+            $w('#selectionTags1').value.length > 0 &&
+            uploadedCoverUrl
+        );
+        
+        $w('#createButton').enable(fieldsValid);
+        
+        // Visual feedback for required fields
+        $w('#bookTitle, #bookAuthor, #lookingFor, #locationInput').forEach(field => {
+            field.style.borderColor = field.value.trim() ? "" : "#ff6b6b";
+        });
+        
+        if (!$w('#selectionTags1').value.length) {
+            $w('#selectionTags1').style.borderColor = "#ff6b6b";
+        } else {
+            $w('#selectionTags1').style.borderColor = "";
+        }
+        
+    } catch (error) {
+        console.error("Validation error:", error);
+    }
 }
 
 async function handleCoverUpload(event) {
     try {
         const [file] = event.target.files;
-        if (!file) return;
+        if (!file) return false;
         
-        // Use Wix's native file upload
         const response = await fetch("/_functions/uploadFile", {
             method: "POST",
             body: file
@@ -84,14 +103,15 @@ async function handleCoverUpload(event) {
         if (response.ok) {
             uploadedCoverUrl = await response.text();
             $w('#coverPreview').src = uploadedCoverUrl;
-        } else {
-            throw new Error("Upload failed");
+            return true;
         }
+        throw new Error("Upload failed");
     } catch (error) {
         console.error("Upload error:", error);
         wixWindow.openLightbox("ErrorLightbox", {
             message: "Failed to upload cover image"
         });
+        return false;
     }
 }
 
