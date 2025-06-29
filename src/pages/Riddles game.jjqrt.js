@@ -14,17 +14,46 @@ let hintCooldown            = false;
 // ────────────────  PAGE READY  ────────────────
 $w.onReady(async () => {
     try {
-        await ensureUserStats();
+        if (!currentUser.loggedIn || !currentUser.id) {
+            console.warn("User not logged in or missing ID");
+            return disableUI('Please log in to play.');
+        }
 
-        await Promise.all([
-            loadTodaysRiddles(),
-            loadUserRiddleProgress()
-        ]);
+        console.log("Starting ensureUserStats...");
+        try {
+            await ensureUserStats();
+            console.log("✔️ ensureUserStats completed");
+        } catch (e) {
+            console.error("❌ Error in ensureUserStats", e);
+            throw e;
+        }
 
+        console.log("Starting riddles & progress load...");
+        try {
+            await Promise.all([
+                loadTodaysRiddles(),
+                loadUserRiddleProgress()
+            ]);
+            console.log("✔️ Riddles and progress loaded");
+        } catch (e) {
+            console.error("❌ Error in riddles/progress loading", e);
+            throw e;
+        }
+
+        console.log("Setting up UI...");
         setupUI();
-        updateDisplay();
+
+        console.log("Updating display...");
+        try {
+            updateDisplay();
+            console.log("✔️ Display updated");
+        } catch (e) {
+            console.error("❌ Error in updateDisplay", e);
+            disableUI('❌ Display error – please refresh.');
+        }
+
     } catch (err) {
-        console.error('Init error', err);
+        console.error('❌ Init error caught at top level:', err);
         disableUI('❌ Something went wrong – please refresh.');
     }
 });
