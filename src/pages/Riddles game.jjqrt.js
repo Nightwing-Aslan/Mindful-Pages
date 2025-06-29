@@ -49,13 +49,20 @@ async function ensureUserStats() {
 
 async function loadTodaysRiddles() {
     const today = getUKDateAsString();
+    console.log("Today's date:", today);
 
-    todaysRiddles = await wixData.query('Riddles')
-                                .eq('date', today)
-                                .ascending('_createdDate')
-                                .find()
-                                .then(res => res.items);
+    const res = await wixData.query('Riddles')
+                             .eq('date', today)
+                             .ascending('_createdDate')
+                             .find();
+
+    todaysRiddles = res.items;
+
+    if (todaysRiddles.length === 0) {
+        console.warn(`No riddles found for date: ${today}`);
+    }
 }
+
 
 async function loadUserRiddleProgress() {
     const today = getUKDateAsString();
@@ -172,6 +179,10 @@ async function openResultBox(name, singleRiddleId = null) {
 function updateDisplay() {
     const solved = userDailyRiddleStats.solvedIds.length;
     const lives  = Math.max(0, userDailyRiddleStats.livesRemaining);
+    
+    if (todaysRiddles.length === 0) {
+        return disableUI('🕵️‍♂️ No riddle set for today. Come back tomorrow!');
+    }
 
     $w('#challengeCounter').text = `${solved}/3`;
     $w('#livesCounter').text     = lives
