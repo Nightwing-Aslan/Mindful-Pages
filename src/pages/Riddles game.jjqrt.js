@@ -195,8 +195,20 @@ async function openResultBox(name, singleRiddleId = null) {
 
 // ────────────────  DISPLAY / UI  ────────────────
 function updateDisplay() {
+    console.log('updateDisplay called');
+    console.log('userDailyRiddleStats:', userDailyRiddleStats);
+    console.log('cachedUserStats:', cachedUserStats);
+    console.log('todaysRiddles count:', todaysRiddles.length);
+
+    if (!userDailyRiddleStats || !cachedUserStats) {
+        disableUI('Loading your game data...');
+        return;
+    }
+
     const solved = userDailyRiddleStats.solvedIds.length;
     const lives  = Math.max(0, userDailyRiddleStats.livesRemaining);
+
+    console.log(`Solved: ${solved}, Lives: ${lives}`);
 
     if (todaysRiddles.length === 0) {
         return disableUI('🕵️‍♂️ No riddle set for today. Come back tomorrow!');
@@ -216,6 +228,8 @@ function updateDisplay() {
     }
 
     const riddle = getCurrentRiddle();
+    console.log('Current riddle:', riddle);
+
     $w('#riddleText').text = riddle?.riddleText || 'No riddle today.';
     $w('#answerInput').value = '';
     enableUI();
@@ -258,7 +272,12 @@ function normalize(s) {
 }
 
 function getCurrentRiddle() {
-    return todaysRiddles[userDailyRiddleStats.solvedIds.length];
+    const idx = userDailyRiddleStats.solvedIds.length;
+    if (idx >= todaysRiddles.length) {
+        console.warn('No more riddles available for current user progress');
+        return null;
+    }
+    return todaysRiddles[idx];
 }
 
 function formatRiddle(r) {
