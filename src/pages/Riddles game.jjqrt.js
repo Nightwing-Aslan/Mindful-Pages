@@ -230,7 +230,7 @@ function updateDisplay() {
     const riddle = getCurrentRiddle();
     console.log('Current riddle:', riddle);
 
-    $w('#riddleText').text = riddle?.riddleText || 'No riddle today.';
+    $w('#riddleText').text = riddle?.riddleText;
     $w('#answerInput').value = '';
     enableUI();
 }
