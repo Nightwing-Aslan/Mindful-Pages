@@ -32,11 +32,9 @@ $w.onReady(async () => {
         console.log("Updating display...");
         updateDisplay();
     } catch (err) {
-        console.error('❌ Init error caught at top level:', err);
-        disableUI('❌ Something went wrong – please refresh.');
+        console.log('Init error caught at top level:', err);
+        disableUI('Something went wrong – please refresh.');
     }
-
-    updateDisplay();
 });
 
 // ────────────────  DATA LOADERS  ────────────────
@@ -105,7 +103,7 @@ async function loadUserRiddleProgress() {
     } else {
         userDailyRiddleStats = await wixData.insert('UserDailyRiddleStats', {
             userId:         currentUser.id,
-            userRef:        { _id: currentUser.id }, // ✅ fixed reference
+            userRef:        { _id: currentUser.id },
             date:           today,
             livesRemaining: 3,
             solvedIds:      [],
@@ -116,8 +114,10 @@ async function loadUserRiddleProgress() {
 
 // ────────────────  UI SET-UP  ────────────────
 function setupUI() {
-  $w('#submitButton').onClick(onSubmit);
-  $w('#hintButton').onClick(showHint);
+    $w('#submitButton').onClick(onSubmit);
+    $w('#hintButton').onClick(showHint);
+
+    console.log("UI HAS BEEN SETUP");
 }
 
 // ────────────────  GAME FLOW  ────────────────
@@ -205,8 +205,13 @@ async function openResultBox(name, singleRiddleId = null) {
 
 // ────────────────  DISPLAY / UI  ────────────────
 function updateDisplay() {
-    if (!userDailyRiddleStats || !cachedUserStats) {
-        disableUI('Loading your game data...');
+    if (!userDailyRiddleStats) {
+        disableUI('No Daily Stats..');
+        return;
+    } 
+    
+    if (!cachedUserStats) {
+        disableUI('Stats Not Cached...');
         return;
     }
 
@@ -239,6 +244,8 @@ function updateDisplay() {
     $w('#riddleText').text = riddle.riddleText;
     $w('#answerInput').value = '';
     enableUI();
+
+    console.log("Enabled UI");
 }
 
 function disableUI(msg) {
@@ -250,6 +257,8 @@ function disableUI(msg) {
 }
 
 function enableUI() {
+    console.log("enableUI()");
+    $w('#riddleText').text = "ENABLED";
     $w('#answerInput').enable();
     $w('#submitButton').enable();
     $w('#hintButton').enable();
