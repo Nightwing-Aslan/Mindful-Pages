@@ -18,44 +18,25 @@ $w.onReady(async () => {
             console.warn("User not logged in or missing ID");
             return disableUI('Please log in to play.');
         }
+        
+        await ensureUserStats();
 
-        console.log("Starting ensureUserStats...");
-        try {
-            await ensureUserStats();
-            console.log("✔️ ensureUserStats completed");
-        } catch (e) {
-            console.error("❌ Error in ensureUserStats", e);
-            throw e;
-        }
-
-        console.log("Starting riddles & progress load...");
-        try {
-            await Promise.all([
-                loadTodaysRiddles(),
-                loadUserRiddleProgress()
-            ]);
-            console.log("✔️ Riddles and progress loaded");
-        } catch (e) {
-            console.error("❌ Error in riddles/progress loading", e);
-            throw e;
-        }
+        await Promise.all([
+            loadTodaysRiddles(),
+            loadUserRiddleProgress()    
+        ]);
 
         console.log("Setting up UI...");
         setupUI();
-
+        
         console.log("Updating display...");
-        try {
-            updateDisplay();
-            console.log("✔️ Display updated");
-        } catch (e) {
-            console.error("❌ Error in updateDisplay", e);
-            disableUI('❌ Display error – please refresh.');
-        }
-
+        updateDisplay();
     } catch (err) {
         console.error('❌ Init error caught at top level:', err);
         disableUI('❌ Something went wrong – please refresh.');
     }
+
+    updateDisplay();
 });
 
 // ────────────────  DATA LOADERS  ────────────────
@@ -224,11 +205,6 @@ async function openResultBox(name, singleRiddleId = null) {
 
 // ────────────────  DISPLAY / UI  ────────────────
 function updateDisplay() {
-    console.log('updateDisplay called');
-    console.log('userDailyRiddleStats:', userDailyRiddleStats);
-    console.log('cachedUserStats:', cachedUserStats);
-    console.log('todaysRiddles count:', todaysRiddles.length);
-
     if (!userDailyRiddleStats || !cachedUserStats) {
         disableUI('Loading your game data...');
         return;
@@ -258,8 +234,9 @@ function updateDisplay() {
 
     const riddle = getCurrentRiddle();
     console.log('Current riddle:', riddle);
+    console.log('Current riddle text:', riddle?.riddleText);
 
-    $w('#riddleText').text = riddle?.riddleText;
+    $w('#riddleText').text = riddle.riddleText;
     $w('#answerInput').value = '';
     enableUI();
 }
