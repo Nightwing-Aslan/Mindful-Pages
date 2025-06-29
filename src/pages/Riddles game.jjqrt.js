@@ -75,6 +75,7 @@ async function loadTodaysRiddles() {
                              .find();
 
     todaysRiddles = res.items;
+    console.log("Riddles Loaded: ", res.items);
 
     if (todaysRiddles.length === 0) {
         console.warn(`No riddles found for date: ${today}`);
