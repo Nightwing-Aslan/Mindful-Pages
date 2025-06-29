@@ -1,4 +1,3 @@
-// Helper function for UK time
 export function getUKDate() {
   const now = new Date();
   const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
@@ -7,11 +6,8 @@ export function getUKDate() {
 }
 
 export function getUKDateAsString() {
-    // UK time (UTC+0/UTC+1 for DST)
-    const now = new Date();
-    const isDST = now.getMonth() > 2 && now.getMonth() < 10; // Apr-Oct
-    const ukOffset = isDST ? 60 : 0; // Minutes
-    return new Date(now.getTime() + (ukOffset * 60 * 1000))
-        .toISOString()
-        .split('T')[0];
+    const ukNow = new Date(
+        new Date().toLocaleString("en-GB", { timeZone: "Europe/London" })
+    );
+    return ukNow.toISOString().split("T")[0]; // e.g. "2025-06-29"
 }
