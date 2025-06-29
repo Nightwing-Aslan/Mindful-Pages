@@ -1,8 +1,8 @@
 // ======================= RIDDLES GAME =======================
-import { currentUser }    from 'wix-users';
-import wixWindow          from 'wix-window';
-import wixLocation        from 'wix-location';
-import wixData            from 'wix-data';
+import { currentUser }       from 'wix-users';
+import wixWindow             from 'wix-window';
+import wixLocation           from 'wix-location';
+import wixData               from 'wix-data';
 import { getUKDateAsString } from 'public/DateUtils.js';
 
 // ────────────────  GLOBAL STATE  ────────────────
@@ -31,25 +31,43 @@ $w.onReady(async () => {
 
 // ────────────────  DATA LOADERS  ────────────────
 async function ensureUserStats() {
-    const { items } = await wixData.query('UserStats')
-                                    .eq('userId', currentUser.id)
-                                    .find();
+    const result = await wixData.query('UserStats')
+                                .eq('userId', currentUser.id)
+                                .limit(1)
+                                .find();
 
-    if (items.length) {
-        cachedUserStats = items[0];
-    } else {
+    if (result.items.length > 0) {
+        cachedUserStats = result.items[0];
+        return;
+    }
+
+    try {
         cachedUserStats = await wixData.insert('UserStats', {
             userId: currentUser.id,
-            userRef: currentUser,
+            userRef: { _id: currentUser.id }, // ✅ fixed reference
             currentStreak: 0,
-            maxStreak:     0
+            maxStreak: 0
         });
+    } catch (err) {
+        console.warn("Insert failed — possible duplicate, retrying query.");
+
+        const retry = await wixData.query('UserStats')
+                                   .eq('userId', currentUser.id)
+                                   .limit(1)
+                                   .find();
+
+        if (retry.items.length) {
+            cachedUserStats = retry.items[0];
+        } else {
+            throw new Error("Failed to create or fetch UserStats.");
+        }
     }
 }
 
 async function loadTodaysRiddles() {
     const today = getUKDateAsString();
     console.log("Today's date:", today);
+    console.log("CurrentUser:", currentUser.loggedIn, currentUser.id);
 
     const res = await wixData.query('Riddles')
                              .eq('date', today)
@@ -62,7 +80,6 @@ async function loadTodaysRiddles() {
         console.warn(`No riddles found for date: ${today}`);
     }
 }
-
 
 async function loadUserRiddleProgress() {
     const today = getUKDateAsString();
@@ -77,7 +94,7 @@ async function loadUserRiddleProgress() {
     } else {
         userDailyRiddleStats = await wixData.insert('UserDailyRiddleStats', {
             userId:         currentUser.id,
-            userRef:        currentUser,
+            userRef:        { _id: currentUser.id }, // ✅ fixed reference
             date:           today,
             livesRemaining: 3,
             solvedIds:      [],
@@ -116,7 +133,7 @@ async function onSubmit() {
 
 async function handleCorrect(riddleId) {
     console.log("Handling Correct Answer");
-    
+
     userDailyRiddleStats.solvedIds.push(riddleId);
     await wixData.update('UserDailyRiddleStats', userDailyRiddleStats);
 
@@ -179,7 +196,7 @@ async function openResultBox(name, singleRiddleId = null) {
 function updateDisplay() {
     const solved = userDailyRiddleStats.solvedIds.length;
     const lives  = Math.max(0, userDailyRiddleStats.livesRemaining);
-    
+
     if (todaysRiddles.length === 0) {
         return disableUI('🕵️‍♂️ No riddle set for today. Come back tomorrow!');
     }
