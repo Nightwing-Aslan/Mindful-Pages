@@ -13,13 +13,18 @@ $w.onReady(async () => {
     initializeFilters();
     setupEventHandlers();
     loadListings();
-    $w('#tradedButton').onClick(() => {
-        // Get current book ID (you'll need to set this in your context)
-        const bookId = ...;  // Get current book's ID
-        
-        wixWindow.openLightbox("RatingLightbox", {
-            bookId: bookId
-        });
+    $w('#tradedButton').onClick(async () => {
+        try {
+            // Get the current book ID from your dataset
+            const bookId = $w('#bookDataset').getCurrentItem()._id;
+            
+            // Open the rating lightbox with context
+            wixWindow.openLightbox("RatingLightbox", {
+                bookId: bookId
+            });
+        } catch (error) {
+            console.error("Error opening rating lightbox:", error);
+        }
     });
 });
 
