@@ -13,7 +13,7 @@ $w.onReady(async () => {
     initializeFilters();
     setupEventHandlers();
     loadListings();
-    $w('#tradeCompleteButton').onClick(() => {
+    $w('#tradedButton').onClick(() => {
         // Get current book ID (you'll need to set this in your context)
         const bookId = ...;  // Get current book's ID
         
