@@ -13,18 +13,14 @@ $w.onReady(async () => {
     initializeFilters();
     setupEventHandlers();
     loadListings();
-    $w('#tradedButton').onClick(async () => {
-        try {
-            // Get the current book ID from your dataset
-            const bookId = $w('#bookDataset').getCurrentItem()._id;
-            
-            // Open the rating lightbox with context
-            wixWindow.openLightbox("RatingLightbox", {
-                bookId: bookId
-            });
-        } catch (error) {
-            console.error("Error opening rating lightbox:", error);
-        }
+    $w('#tradedButton').onClick(() => {
+        // Get the current book ID (adjust to match your data)
+        const bookId = ...; 
+        
+        // Open with context
+        wixWindow.openLightbox("RatingLightbox", {
+            bookId: bookId  // REQUIRED parameter
+        });
     });
 });
 
