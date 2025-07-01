@@ -3,36 +3,18 @@ import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 
 $w.onReady(() => {
-    // Get context passed to lightbox
+    // Immediately check for valid context
     const context = wixWindow.lightbox.getContext();
     
-    // Validate context - only show if we have a valid book ID
     if (!context || !context.bookId) {
-        // Close immediately if missing required context
+        // Close if opened without proper context
         wixWindow.lightbox.close();
         return;
     }
     
-    // Only set up UI if we have valid context
+    // Setup UI
     $w('#submitRating').onClick(submitRating);
     $w('#cancelButton').onClick(() => wixWindow.lightbox.close());
-    
-    // Show loading state until we have book data
-    $w('#loader').show();
-    $w('#content').hide();
-    
-    // Load book details
-    wixData.get("books", context.bookId)
-        .then(book => {
-            $w('#bookTitle').text = `Rate your trade for: ${book.title}`;
-            $w('#loader').hide();
-            $w('#content').show();
-        })
-        .catch(error => {
-            $w('#errorText').text = "Error loading book details: " + error.message;
-            $w('#errorText').show();
-            $w('#loader').hide();
-        });
 });
 
 async function submitRating() {
@@ -40,8 +22,11 @@ async function submitRating() {
     const rating = parseInt($w('#ratingInput').value);
     const comment = $w('#commentInput').value;
     
+    // Clear previous errors
+    $w('#errorText').hide();
+    
     // Validation
-    if (!rating || rating < 1 || rating > 5) {
+    if (isNaN(rating) || rating < 1 || rating > 5) {
         $w('#errorText').text = "Please select a valid rating (1-5)";
         $w('#errorText').show();
         return;
@@ -62,15 +47,14 @@ async function submitRating() {
             bookTitle: book.title
         });
         
+        // Close and show success
         wixWindow.lightbox.close();
-        
-        // Show success message
         wixWindow.openLightbox("SuccessLightbox", {
             message: "Rating submitted successfully!"
         });
         
     } catch (error) {
-        $w('#errorText').text = "Error submitting rating: " + error.message;
+        $w('#errorText').text = "Error: " + error.message;
         $w('#errorText').show();
     }
 }
