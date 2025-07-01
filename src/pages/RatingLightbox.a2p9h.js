@@ -3,8 +3,36 @@ import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 
 $w.onReady(() => {
+    // Get context passed to lightbox
+    const context = wixWindow.lightbox.getContext();
+    
+    // Validate context - only show if we have a valid book ID
+    if (!context || !context.bookId) {
+        // Close immediately if missing required context
+        wixWindow.lightbox.close();
+        return;
+    }
+    
+    // Only set up UI if we have valid context
     $w('#submitRating').onClick(submitRating);
     $w('#cancelButton').onClick(() => wixWindow.lightbox.close());
+    
+    // Show loading state until we have book data
+    $w('#loader').show();
+    $w('#content').hide();
+    
+    // Load book details
+    wixData.get("books", context.bookId)
+        .then(book => {
+            $w('#bookTitle').text = `Rate your trade for: ${book.title}`;
+            $w('#loader').hide();
+            $w('#content').show();
+        })
+        .catch(error => {
+            $w('#errorText').text = "Error loading book details: " + error.message;
+            $w('#errorText').show();
+            $w('#loader').hide();
+        });
 });
 
 async function submitRating() {
