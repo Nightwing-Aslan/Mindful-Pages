@@ -1,0 +1,106 @@
+import wixData from 'wix-data';
+
+const COLLECTION = 'UserStats';
+
+/**
+ * Get or create user stats
+ */
+export async function getOrCreateUserStats(userId) {
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .limit(1)
+        .find();
+
+    if (items.length > 0) {
+        console.log("Loaded existing stats:", items[0]);
+        return items[0];
+    }
+
+    console.log('Creating user stats for: ', userId)
+    return insertUserStats(userId, 0, 0);
+}
+
+/**
+ * Fetch the user stats or return safe defaults.
+ */
+export async function fetchUserStats(userId) {
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .limit(1)
+        .find();
+
+    const stats = items[0] || { currentStreak: null, maxStreak: null };
+    console.log(`Fetched user stats (${userId}):`, stats);
+    return stats;
+}
+
+/**
+ * Insert user stats (first-time init).
+ */
+export async function insertUserStats(userId, currentStreak, maxStreak) {
+    const newStats = {
+        userId,
+        userRef: { _id: userId },
+        currentStreak,
+        maxStreak
+    };
+
+    const inserted = await wixData.insert(COLLECTION, newStats);
+    console.log("Inserted user stats:", inserted);
+    return inserted;
+}
+
+/**
+ * Update user stats if exists, or insert new.
+ */
+export async function updateUserStats(userId, currentStreak, maxStreak) {
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .limit(1)
+        .find();
+
+    if (items.length > 0) {
+        const item = items[0];
+        item.currentStreak = currentStreak;
+        item.maxStreak = maxStreak;
+
+        const updated = await wixData.update(COLLECTION, item);
+        console.log("Updated user stats:", updated);
+        return updated;
+    } else {
+        return insertUserStats(userId, currentStreak, maxStreak);
+    }
+}
+
+/**
+ * Delete user stats — e.g., for reset/debug.
+ */
+export async function deleteUserStats(userId) {
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .limit(1)
+        .find();
+
+    if (items.length > 0) {
+        await wixData.remove(COLLECTION, items[0]._id);
+        console.log("Deleted user stats for:", userId);
+    }
+}
+
+/**
+ * Increment current streak by 1 and update max if needed.
+ */
+export async function incrementUserStreak(userId) {
+    const stats = await getOrCreateUserStats(userId);
+    const newStreak = (stats.currentStreak ?? 0) + 1;
+    const newMax = Math.max(newStreak, stats.maxStreak ?? 0);
+    return updateUserStats(userId, newStreak, newMax);
+}
+
+/**
+ * Reset current streak to 0 (e.g., after failed day).
+ */
+export async function resetCurrentStreak(userId) {
+    const stats = await getOrCreateUserStats(userId);
+    return updateUserStats(userId, 0, stats.maxStreak ?? 0);
+}

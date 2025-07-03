@@ -1,251 +1,275 @@
-// ======================= RIDDLES GAME =======================
+// ======================= OPTIMIZED RIDDLES GAME =======================
 import { currentUser }       from 'wix-users';
 import wixWindow             from 'wix-window';
 import wixLocation           from 'wix-location';
 import wixData               from 'wix-data';
 import { getUKDateAsString } from 'public/DateUtils.js';
+import { fetchRiddlesByDate } from 'backend/riddles-api.jsw'
+import { getOrCreateUserStats, incrementUserStreak, resetCurrentStreak } from 'backend/user-stats-api.jsw'
+import { 
+    getOrCreateUserRiddleProgress, 
+    hasSolvedRiddle, 
+    addSolvedRiddle, 
+    decrementLivesRemaining 
+} from 'backend/user-daily-riddle-stats-api.jsw'
 
 // ────────────────  GLOBAL STATE  ────────────────
 let todaysRiddles           = [];
 let userDailyRiddleStats    = null;          // CMS UserDailyRiddleStats
 let cachedUserStats         = null;          // CMS UserStats
 let hintCooldown            = false;
+let gameInitialized         = false;
 
 // ────────────────  PAGE READY  ────────────────
 $w.onReady(async () => {
     try {
-        if (!currentUser.loggedIn || !currentUser.id) {
-            console.warn("User not logged in or missing ID");
-            return disableUI('Please log in to play.');
-        }
+        console.log("Initializing game...");
+        await initializeGame();
         
-        await ensureUserStats();
-
-        await Promise.all([
-            loadTodaysRiddles(),
-            loadUserRiddleProgress()    
-        ]);
-
         console.log("Setting up UI...");
         setupUI();
         
-        console.log("Updating display...");
-        updateDisplay();
+        console.log("Game ready!");
+        
     } catch (err) {
-        console.log('Init error caught at top level:', err);
+        console.error('Page Error:', err);
         disableUI('Something went wrong – please refresh.');
     }
 });
 
-// ────────────────  DATA LOADERS  ────────────────
-async function ensureUserStats() {
-    const result = await wixData.query('UserStats')
-                                .eq('userId', currentUser.id)
-                                .limit(1)
-                                .find();
+// ────────────────  INITIALIZATION  ────────────────
+async function initializeGame() {
+    // Load all required data in parallel - SINGLE CALL EACH
+    const [userStats, userDailyStats, riddles] = await Promise.all([
+        getOrCreateUserStats(currentUser.id),
+        getOrCreateUserRiddleProgress(currentUser.id),
+        fetchRiddlesByDate(getUKDateAsString())
+    ]);
 
-    if (result.items.length > 0) {
-        cachedUserStats = result.items[0];
-        return;
-    }
+    cachedUserStats = userStats;
+    userDailyRiddleStats = userDailyStats;
+    todaysRiddles = riddles;
 
-    try {
-        cachedUserStats = await wixData.insert('UserStats', {
-            userId: currentUser.id,
-            userRef: { _id: currentUser.id }, // ✅ fixed reference
-            currentStreak: 0,
-            maxStreak: 0
-        });
-    } catch (err) {
-        console.warn("Insert failed — possible duplicate, retrying query.");
+    console.log("Loaded User Stats: ", cachedUserStats);
+    console.log("Loaded User Daily Stats: ", userDailyRiddleStats);
+    console.log("Loaded Today's Riddles: ", todaysRiddles);
 
-        const retry = await wixData.query('UserStats')
-                                   .eq('userId', currentUser.id)
-                                   .limit(1)
-                                   .find();
-
-        if (retry.items.length) {
-            cachedUserStats = retry.items[0];
-        } else {
-            throw new Error("Failed to create or fetch UserStats.");
-        }
-    }
-}
-
-async function loadTodaysRiddles() {
-    const today = getUKDateAsString();
-    console.log("Today's date:", today);
-    console.log("CurrentUser:", currentUser.loggedIn, currentUser.id);
-
-    const res = await wixData.query('Riddles')
-                             .eq('date', today)
-                             .ascending('_createdDate')
-                             .find();
-
-    todaysRiddles = res.items;
-    console.log("Riddles Loaded: ", res.items);
-
-    if (todaysRiddles.length === 0) {
-        console.warn(`No riddles found for date: ${today}`);
-    }
-}
-
-async function loadUserRiddleProgress() {
-    const today = getUKDateAsString();
-
-    const { items } = await wixData.query('UserDailyRiddleStats')
-                                    .eq('userId', currentUser.id)
-                                    .eq('date', today)
-                                    .find();
-
-    if (items.length) {
-        userDailyRiddleStats = items[0];
-    } else {
-        userDailyRiddleStats = await wixData.insert('UserDailyRiddleStats', {
-            userId:         currentUser.id,
-            userRef:        { _id: currentUser.id },
-            date:           today,
-            livesRemaining: 3,
-            solvedIds:      [],
-            streakAtStart:  cachedUserStats.currentStreak
-        });
-    }
+    // Update display with loaded data
+    updateDisplay();
+    gameInitialized = true;
 }
 
 // ────────────────  UI SET-UP  ────────────────
 function setupUI() {
-    $w('#submitButton').onClick(onSubmit);
-    $w('#hintButton').onClick(showHint);
-
-    console.log("UI HAS BEEN SETUP");
+    ///$w('#hintButton').onClick(showHint);
+    $w('#submitButton').onClick(handleSubmit);
 }
 
 // ────────────────  GAME FLOW  ────────────────
-async function onSubmit() {
+async function handleSubmit() {
+    if (!gameInitialized) return;
+    
     const answer = normalize($w('#answerInput').value);
     const riddle = getCurrentRiddle();
 
-    if (!riddle) return;
+    if (!riddle) {
+        console.warn('No current riddle available');
+        return;
+    }
+
+    if (!answer) {
+        console.warn('No answer provided');
+        return;
+    }
 
     $w('#submitButton').disable();
 
-    const correct = (riddle.correctAnswers || [])
-                        .some(a => normalize(a) === answer);
+    try {
+        const correct = (riddle.correctAnswers || [])
+                            .some(a => normalize(a) === answer);
 
-    if (correct) {
-        await handleCorrect(riddle._id);
-    } else {
-        await handleWrong();
+        if (correct) {
+            await handleCorrect(riddle._id);
+        } else {
+            await handleWrong();
+        }
+        
+    } catch (err) {
+        console.error('Error handling answer:', err);
+        $w('#submitButton').enable();
     }
-
-    updateDisplay();
-    $w('#submitButton').enable();
 }
 
 async function handleCorrect(riddleId) {
-    console.log("Handling Correct Answer");
+    console.log("Handling Correct Answer for riddle:", riddleId);
 
+    flashInputBorder(true);
+
+    await addSolvedRiddle(currentUser.id, riddleId);
+    
     userDailyRiddleStats.solvedIds.push(riddleId);
-    await wixData.update('UserDailyRiddleStats', userDailyRiddleStats);
-
     const solved = userDailyRiddleStats.solvedIds.length;
 
-    if (solved === 1) {
-        await updateStreak(true);
-        await openResultBox('SuccessLightbox', riddleId);
-    } else if (solved === 3) {
+    console.log(`Riddles solved: ${solved}/${todaysRiddles.length}`);
+
+    updateChallengeProgress();
+
+    // Check victory condition using local state
+    if (hasSolvedAllRiddlesLocal()) {
+        console.log("All riddles solved!");
+        
+        await incrementUserStreak(currentUser.id);
+        
+        cachedUserStats.currentStreak = (cachedUserStats.currentStreak || 0) + 1;
+        cachedUserStats.maxStreak = Math.max(cachedUserStats.currentStreak, cachedUserStats.maxStreak || 0);
+        
+        updateStreakDisplay();
+        
         await openResultBox('VictoryLightbox');
+        return;
     }
+
+    if (solved === 1) {
+        await incrementUserStreak(currentUser.id);
+        
+        // Update local state
+        cachedUserStats.currentStreak = (cachedUserStats.currentStreak || 0) + 1;
+        cachedUserStats.maxStreak = Math.max(cachedUserStats.currentStreak, cachedUserStats.maxStreak || 0);
+        
+        updateStreakDisplay();
+        
+        await openResultBox('Success Lightbox', riddleId);
+    }
+    
+    updateDisplay();
+    $w('#submitButton').enable();
 }
 
 async function handleWrong() {
     console.log("Handling Wrong Answer");
 
-    userDailyRiddleStats.livesRemaining--;
-    await wixData.update('UserDailyRiddleStats', userDailyRiddleStats);
+    flashInputBorder(false);
 
+    await decrementLivesRemaining(currentUser.id);
+    
+    if (userDailyRiddleStats.livesRemaining > 0) {
+        userDailyRiddleStats.livesRemaining--;
+    }
+
+    updateLivesDisplay();
+
+    // Check if game over using local state
     if (userDailyRiddleStats.livesRemaining <= 0 &&
         userDailyRiddleStats.solvedIds.length === 0) {
-
-        await updateStreak(false);
+        
+        console.log("Game Over - resetting streak");
+        
+        await resetCurrentStreak(currentUser.id);
+        
+        cachedUserStats.currentStreak = 0;
+        
+        updateStreakDisplay();
+        
         await openResultBox('GameOverLightbox');
+        return;
     }
-}
-
-// ────────────────  STREAKS  ────────────────
-async function updateStreak(won) {
-    const newStreak = won ? cachedUserStats.currentStreak + 1 : 0;
-    const newMax    = Math.max(newStreak, cachedUserStats.maxStreak);
-
-    cachedUserStats = {
-        ...cachedUserStats,
-        currentStreak: newStreak,
-        maxStreak:     newMax
-    };
-
-    await wixData.update('UserStats', cachedUserStats);
+    
+    updateDisplay();
+    $w('#submitButton').enable();
 }
 
 // ────────────────  LIGHTBOX  ────────────────
 async function openResultBox(name, singleRiddleId = null) {
     const payload = {
-        riddles: todaysRiddles.map(formatRiddle),
-        currentStreak: cachedUserStats.currentStreak,
-        maxStreak:     cachedUserStats.maxStreak
+        riddles:        todaysRiddles.map(formatRiddle),
+        currentStreak:  cachedUserStats.currentStreak,
+        maxStreak:      cachedUserStats.maxStreak
     };
 
     if (singleRiddleId) {
         const r = todaysRiddles.find(x => x._id === singleRiddleId);
-        payload.riddle = formatRiddle(r);
+        if (r) {
+            payload.riddle = formatRiddle(r);
+        }
     }
 
     await wixWindow.openLightbox(name, payload);
     wixLocation.to('/riddles');
 }
 
-// ────────────────  DISPLAY / UI  ────────────────
+//// ────────────────  UI  ────────────────
 function updateDisplay() {
+    console.log("Updating display...");
+    
+    // Early validation
+    if (!validateGameState()) return;
+    
+    // Update all UI components
+    updateCounters();
+    updateGameState();
+    
+    console.log("Display updated");
+}
+
+function validateGameState() {
     if (!userDailyRiddleStats) {
         disableUI('No Daily Stats..');
-        return;
+        return false;
     } 
     
     if (!cachedUserStats) {
         disableUI('Stats Not Cached...');
-        return;
+        return false;
     }
-
-    const solved = userDailyRiddleStats.solvedIds.length;
-    const lives  = Math.max(0, userDailyRiddleStats.livesRemaining);
-
-    console.log(`Solved: ${solved}, Lives: ${lives}`);
-
+    
     if (todaysRiddles.length === 0) {
-        return disableUI('🕵️‍♂️ No riddle set for today. Come back tomorrow!');
+        disableUI('🕵️‍♂️ No riddle set for today. Come back tomorrow!');
+        return false;
     }
+    
+    return true;
+}
 
-    $w('#challengeCounter').text = `${solved}/3`;
-    $w('#livesCounter').text     = lives
-        ? '❤️'.repeat(lives)
+function updateCounters() {
+    const solved = userDailyRiddleStats.solvedIds.length;
+    const lives = Math.max(0, userDailyRiddleStats.livesRemaining);
+    const streak = cachedUserStats.currentStreak || 0;
+    
+    console.log(`Solved: ${solved}, Lives: ${lives}, Streak: ${streak}`);
+    
+    // Update counter displays
+    $w('#challengeCounter').text = `${solved}/${todaysRiddles.length}`;
+    $w('#livesCounter').text = lives > 0 
+        ? '❤️'.repeat(lives) 
         : 'Out of Lives 💔';
-    $w('#streakCounter').text    = cachedUserStats.currentStreak.toString();
+    $w('#streakCounter').text = streak.toString();
+}
 
-    if (solved >= 3) {
+function updateGameState() {
+    // Check end game conditions first
+    if (hasSolvedAllRiddlesLocal()) {
         return disableUI('🎉 All riddles solved!');
     }
-    if (lives <= 0) {
+    
+    if (userDailyRiddleStats.livesRemaining <= 0) {
         return disableUI('💀 Game over.');
     }
-
+    
+    // Update active game state
     const riddle = getCurrentRiddle();
-    console.log('Current riddle:', riddle);
-    console.log('Current riddle text:', riddle?.riddleText);
+    if (!riddle) {
+        return disableUI('🎯 No more riddles available.');
+    }
+    
+    updateRiddleDisplay(riddle);
+}
 
+function updateRiddleDisplay(riddle) {
+    console.log('Displaying riddle:', riddle);
+    
     $w('#riddleText').text = riddle.riddleText;
     $w('#answerInput').value = '';
     enableUI();
-
-    console.log("Enabled UI");
 }
 
 function disableUI(msg) {
@@ -258,27 +282,34 @@ function disableUI(msg) {
 
 function enableUI() {
     console.log("enableUI()");
-    $w('#riddleText').text = "ENABLED";
     $w('#answerInput').enable();
     $w('#submitButton').enable();
     $w('#hintButton').enable();
 }
 
-function showHint() {
-    if (hintCooldown) return;
+// ────────────────  UI HELPERS  ────────────────
 
-    const riddle = getCurrentRiddle();
-    if (riddle?.hint) {
-        wixWindow.openLightbox('Hint', { hint: riddle.hint });
+function updateSingleCounter(counterId, value) {
+    const element = $w(counterId);
+    if (element) {
+        element.text = value;
     }
+}
 
-    hintCooldown = true;
-    $w('#hintButton').disable();
+function updateLivesDisplay() {
+    const lives = Math.max(0, userDailyRiddleStats.livesRemaining);
+    const livesText = lives > 0 ? '❤️'.repeat(lives) : 'Out of Lives 💔';
+    updateSingleCounter('#livesCounter', livesText);
+}
 
-    setTimeout(() => {
-        hintCooldown = false;
-        $w('#hintButton').enable();
-    }, 3000);
+function updateStreakDisplay() {
+    const streak = cachedUserStats.currentStreak || 0;
+    updateSingleCounter('#streakCounter', streak.toString());
+}
+
+function updateChallengeProgress() {
+    const solved = userDailyRiddleStats.solvedIds.length;
+    updateSingleCounter('#challengeCounter', `${solved}/${todaysRiddles.length}`);
 }
 
 // ────────────────  HELPERS  ────────────────
@@ -295,10 +326,68 @@ function getCurrentRiddle() {
     return todaysRiddles[idx];
 }
 
+function hasSolvedAllRiddlesLocal() {
+    if (!todaysRiddles.length) return false;
+    
+    return userDailyRiddleStats.solvedIds.length >= todaysRiddles.length;
+}
+
 function formatRiddle(r) {
     return {
         question:     r.riddleText,
         answer:       (r.correctAnswers || []).join(', '),
         explanation:  r.explanation || 'No explanation'
     };
+}
+
+
+// ────────────────  VISUAL FEEDBACK FUNCTIONS  ────────────────
+
+function flashInputBorder(isCorrect, duration = 1500) {
+    const input = $w('#answerInput');
+    
+    // Set the appropriate color and style
+    if (isCorrect) {
+        input.style.borderColor = '#22c55e';  // Green
+        input.style.borderWidth = '2px';
+        input.style.borderStyle = 'solid';
+    } else {
+        input.style.borderColor = '#ef4444';  // Red
+        input.style.borderWidth = '2px';
+        input.style.borderStyle = 'solid';
+    }
+    
+    // Add a subtle glow effect
+    input.style.boxShadow = isCorrect 
+        ? '0 0 8px rgba(34, 197, 94, 0.4)'   // Green glow
+        : '0 0 8px rgba(239, 68, 68, 0.4)';  // Red glow
+    
+    // Reset to normal after duration
+    setTimeout(() => {
+        resetInputBorder();
+    }, duration);
+}
+
+function resetInputBorder() {
+    const input = $w('#answerInput');
+    
+    // Reset to default styling
+    input.style.borderColor = '';
+    input.style.borderWidth = '';
+    input.style.borderStyle = '';
+    input.style.boxShadow = '';
+}
+
+// Alternative approach with CSS classes (if you prefer)
+function flashInputBorderWithClasses(isCorrect, duration = 1500) {
+    const input = $w('#answerInput');
+    
+    // Add appropriate CSS class
+    const className = isCorrect ? 'success-flash' : 'error-flash';
+    input.addClass(className);
+    
+    // Remove class after duration
+    setTimeout(() => {
+        input.removeClass(className);
+    }, duration);
 }

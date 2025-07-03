@@ -1,0 +1,104 @@
+import wixData from 'wix-data';
+import { getUKDateAsString } from 'public/DateUtils.js';
+
+const COLLECTION = 'UserDailyRiddleStats';
+
+/**
+ * Get or create today's riddle progress for the user.
+ */
+export async function getOrCreateUserRiddleProgress(userId, cachedStats = null) {
+    const today = getUKDateAsString();
+
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .eq('date', today)
+        .limit(1)
+        .find();
+
+    if (items.length) {
+        console.log("Loaded existing progress:", items[0]);
+        return items[0];
+    }
+
+    const defaultStreak = cachedStats?.currentStreak ?? 0;
+
+    const newProgress = {
+        userId,
+        userRef: { _id: userId },
+        date: today,
+        livesRemaining: 3,
+        solvedIds: [],
+        streakAtStart: defaultStreak
+    };
+
+    const inserted = await wixData.insert(COLLECTION, newProgress);
+    console.log("Inserted new progress:", inserted);
+    return inserted;
+}
+
+/**
+ * Update livesRemaining for today's record.
+ */
+export async function updateLivesRemaining(userId, newLives) {
+    const record = await getOrCreateUserRiddleProgress(userId);
+    record.livesRemaining = newLives;
+    const updated = await wixData.update(COLLECTION, record);
+    console.log("Updated livesRemaining:", updated);
+    return updated;
+}
+
+/**
+ * Update livesRemaining for today's record.
+ */
+export async function decrementLivesRemaining(userId) {
+    const record = await getOrCreateUserRiddleProgress(userId);
+
+    var newLives = record.livesRemaining;
+
+    if(newLives >= 1)
+        newLives--;
+
+    updateLivesRemaining(userId, newLives);
+}
+
+/**
+ * Add a solved riddle ID.
+ */
+export async function addSolvedRiddle(userId, riddleId) {
+    const record = await getOrCreateUserRiddleProgress(userId);
+    const solved = new Set(record.solvedIds || []);
+    solved.add(riddleId);
+
+    record.solvedIds = Array.from(solved);
+    const updated = await wixData.update(COLLECTION, record);
+    console.log("Added solved riddle:", updated);
+    return updated;
+}
+
+/**
+ * Reset today's progress.
+ */
+export async function resetUserProgress(userId) {
+    const today = getUKDateAsString();
+
+    const { items } = await wixData.query(COLLECTION)
+        .eq('userId', userId)
+        .eq('date', today)
+        .limit(1)
+        .find();
+
+    if (items.length > 0) {
+        await wixData.remove(COLLECTION, items[0]._id);
+        console.log("Removed today's progress");
+    }
+
+    return getOrCreateUserRiddleProgress(userId);
+}
+
+/**
+ * Check if a riddle was already solved today.
+ */
+export async function hasSolvedRiddle(userId, riddleId) {
+    const record = await getOrCreateUserRiddleProgress(userId);
+    return (record.solvedIds || []).includes(riddleId);
+}

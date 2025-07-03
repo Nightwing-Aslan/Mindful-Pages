@@ -1,0 +1,28 @@
+import wixData from 'wix-data';
+import { getUKDateAsString } from 'public/DateUtils.js';
+
+const COLLECTION = 'Riddles';
+
+export function fetchAllRiddles() {
+    return wixData.query(COLLECTION).find()
+    .then((result) => {
+        console.log("Fetched all riddles:", result.items);
+        return result.items;
+    })
+    .catch((err) => {
+        console.error("Error fetching all riddles:", err);
+        throw err;
+    });
+}
+
+export function fetchRiddlesByDate(date = getUKDateAsString()) {
+    return wixData.query(COLLECTION).eq('date', date).find()
+    .then((result) => {
+        console.log("Fetched riddles for date", date + ":", result.items);
+        return result.items;
+    })
+    .catch((err) => {
+        console.error("Error fetching riddles by date:", err);
+        throw err;
+    });
+}
