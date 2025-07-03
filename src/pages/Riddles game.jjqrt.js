@@ -2,13 +2,11 @@
 import { currentUser }       from 'wix-users';
 import wixWindow             from 'wix-window';
 import wixLocation           from 'wix-location';
-import wixData               from 'wix-data';
 import { getUKDateAsString } from 'public/DateUtils.js';
 import { fetchRiddlesByDate } from 'backend/riddles-api.jsw'
 import { getOrCreateUserStats, incrementUserStreak, resetCurrentStreak } from 'backend/user-stats-api.jsw'
 import { 
     getOrCreateUserRiddleProgress, 
-    hasSolvedRiddle, 
     addSolvedRiddle, 
     decrementLivesRemaining 
 } from 'backend/user-daily-riddle-stats-api.jsw'
@@ -17,7 +15,7 @@ import {
 let todaysRiddles           = [];
 let userDailyRiddleStats    = null;          // CMS UserDailyRiddleStats
 let cachedUserStats         = null;          // CMS UserStats
-let hintCooldown            = false;
+// let hintCooldown            = false;
 let gameInitialized         = false;
 
 // ────────────────  PAGE READY  ────────────────
