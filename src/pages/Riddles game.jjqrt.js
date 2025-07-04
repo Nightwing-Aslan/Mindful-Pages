@@ -219,7 +219,7 @@ class GameStateManager {
         const isFirstRiddle = newSolvedIds.length === 1;
         const isAllSolved = newSolvedIds.length >= this.state.riddles.length;
         
-        if (isFirstRiddle || isAllSolved) {
+        if (isAllSolved) {
             const newStreak = this.state.userStats.currentStreak + 1;
             const newMaxStreak = Math.max(newStreak, this.state.userStats.maxStreak);
             
@@ -231,7 +231,7 @@ class GameStateManager {
         try {
             await addSolvedRiddle(userId, riddleId);
             
-            if (isFirstRiddle || isAllSolved) {
+            if (isAllSolved) {
                 await incrementUserStreak(userId);
             }
             

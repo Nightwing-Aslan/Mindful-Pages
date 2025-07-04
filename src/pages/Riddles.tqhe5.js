@@ -13,7 +13,7 @@ $w.onReady(async () => {
     const [dailyStats, userStats] = await Promise.all([
         getOrCreateUserRiddleProgress(currentUser.id),
         getOrCreateUserStats(currentUser.id)
-    ]);   
+    ]);
     
     if (dailyStats && dailyStats.solvedIds.length >= 3) {
         $w('#playButton').disable();
