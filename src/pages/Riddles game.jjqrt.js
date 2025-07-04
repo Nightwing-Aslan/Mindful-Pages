@@ -11,6 +11,30 @@ import {
     decrementLivesRemaining 
 } from 'backend/user-daily-riddle-stats-api.jsw'
 
+// ────────────────  USER MANAGEMENT  ────────────────
+let userId = null;
+
+async function ensureUser() {
+    if (userId) return userId;
+    
+    // Wait for user to be loaded
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds max
+    
+    while (attempts < maxAttempts) {
+        if (currentUser.loggedIn && currentUser.id) {
+            userId = currentUser.id;
+            console.log('User loaded:', userId);
+            return userId;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
+    throw new Error('User not loaded after 5 seconds');
+}
+
 // ────────────────  STATE MANAGEMENT SYSTEM  ────────────────
 class GameStateManager {
     constructor() {
@@ -177,6 +201,9 @@ class GameStateManager {
     async handleSolveRiddle(payload) {
         const { riddleId } = payload;
         
+        // Ensure user is loaded
+        await ensureUser();
+        
         // Create snapshot for rollback
         const snapshot = {
             solvedIds: [...this.state.dailyStats.solvedIds],
@@ -202,10 +229,10 @@ class GameStateManager {
         
         // Sync with database
         try {
-            await addSolvedRiddle(currentUser.id, riddleId);
+            await addSolvedRiddle(userId, riddleId);
             
             if (isFirstRiddle || isAllSolved) {
-                await incrementUserStreak(currentUser.id);
+                await incrementUserStreak(userId);
             }
             
             console.log('Successfully synced solve riddle to database');
@@ -235,6 +262,9 @@ class GameStateManager {
             return { lives: 0 };
         }
         
+        // Ensure user is loaded
+        await ensureUser();
+        
         // Create snapshot for rollback
         const snapshot = {
             livesRemaining: currentLives,
@@ -254,10 +284,10 @@ class GameStateManager {
         
         // Sync with database
         try {
-            await decrementLivesRemaining(currentUser.id);
+            await decrementLivesRemaining(userId);
             
             if (isGameOver) {
-                await resetCurrentStreak(currentUser.id);
+                await resetCurrentStreak(userId);
             }
             
             console.log('Successfully synced decrement lives to database');
@@ -275,12 +305,15 @@ class GameStateManager {
     }
     
     async handleResetStreak() {
+        // Ensure user is loaded
+        await ensureUser();
+        
         const snapshot = { currentStreak: this.state.userStats.currentStreak };
         
         this.updateState('userStats.currentStreak', 0);
         
         try {
-            await resetCurrentStreak(currentUser.id);
+            await resetCurrentStreak(userId);
             console.log('Successfully synced reset streak to database');
         } catch (error) {
             console.error('Failed to sync reset streak to database:', error);
@@ -565,10 +598,14 @@ $w.onReady(async () => {
         // Initialize UI controller
         uiController.init();
         
+        // Ensure user is loaded first
+        await ensureUser();
+        console.log("User loaded:", userId);
+        
         // Load game data
         const [userStats, dailyStats, riddles] = await Promise.all([
-            getOrCreateUserStats(currentUser.id),
-            getOrCreateUserRiddleProgress(currentUser.id),
+            getOrCreateUserStats(userId),
+            getOrCreateUserRiddleProgress(userId),
             fetchRiddlesByDate(getUKDateAsString())
         ]);
         

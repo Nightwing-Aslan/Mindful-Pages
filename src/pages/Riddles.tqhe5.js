@@ -11,8 +11,8 @@ $w.onReady(async () => {
     console.log("On Ready: Riddle Page");
 
     const [dailyStats, userStats] = await Promise.all([
-        getOrCreateUserRiddleProgress(),
-        getOrCreateUserStats()
+        getOrCreateUserRiddleProgress(currentUser.id),
+        getOrCreateUserStats(currentUser.id)
     ]);   
     
     if (dailyStats && dailyStats.solvedIds.length >= 3) {
